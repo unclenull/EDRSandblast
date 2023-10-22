@@ -64,7 +64,16 @@ DWORD WINAPI dumpProcess(LPTSTR processName, TCHAR* outputDumpFile) {
     //PE* dbghelpPe = PE_create(hDbghelp, TRUE);
     //_MiniDumpWriteDump MiniDumpWriteDumpFunc = (_MiniDumpWriteDump) PE_functionAddr(dbghelpPe, "MiniDumpWriteDump");
 
-    _MiniDumpWriteDump MiniDumpWriteDumpFunc = (_MiniDumpWriteDump) GetProcAddress(LoadLibrary(TEXT("dbghelp.dll")), "MiniDumpWriteDump");
+    HINSTANCE hGetProcIDDLL = LoadLibrary(TEXT("dbghelp.dll"));
+    if (!hGetProcIDDLL) {
+        _tprintf_or_not(TEXT("[!] Could not load dbghelp.dll\n"));
+        return 1;
+    }
+    _MiniDumpWriteDump MiniDumpWriteDumpFunc = (_MiniDumpWriteDump) GetProcAddress(hGetProcIDDLL, "MiniDumpWriteDump");
+    if (!MiniDumpWriteDumpFunc) {
+        _tprintf_or_not(TEXT("[!] Could not get address of MiniDumpWriteDump\n"));
+        return 1;
+    }
 
     // Now walk the snapshot of processes, and look for the specified process.
     do {

@@ -47,6 +47,8 @@ union NtoskrnlOffsets {
         DWORD64 psThreadType;
         // ntoskrnl _OBJECT_TYPE's CallbackList symbol offset
         DWORD64 object_type_callbacklist;
+
+        DWORD64 ObpTypeDirectoryObject;
     } st;
 
     // array version (usefull for code factoring)

@@ -166,7 +166,9 @@ def extractOffsets(input_file, output_file, mode):
                             ('_TRACE_ENABLE_INFO ProviderEnableInfo', get_field_offset),
                             ("PsProcessType", get_symbol_offset),
                             ("PsThreadType", get_symbol_offset),
-                            ('struct _LIST_ENTRY CallbackList', get_field_offset)]
+                            ('struct _LIST_ENTRY CallbackList', get_field_offset),
+                            ("ObpTypeDirectoryObject", get_symbol_offset)
+                           ]
             elif imageType == "wdigest":
                 symbols = [
                 ("g_fParameter_UseLogonCredential",get_symbol_offset), 

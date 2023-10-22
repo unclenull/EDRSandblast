@@ -1,0 +1,2 @@
+ntoskrnlVersion,PspCreateProcessNotifyRoutineOffset,PspCreateThreadNotifyRoutineOffset,PspLoadImageNotifyRoutineOffset,_PS_PROTECTIONOffset,EtwThreatIntProvRegHandleOffset,EtwRegEntry_GuidEntryOffset,EtwGuidEntry_ProviderEnableInfoOffset,PsProcessType,PsThreadType,CallbackList
+ntoskrnl_22621-2283.exe,d0c440,d0c240,d0c040,87a,c318e0,20,60,d1da18,d1da40,c8

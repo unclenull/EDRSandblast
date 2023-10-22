@@ -1,6 +1,8 @@
 #pragma once
 #include <Windows.h>
 
+#define OBJECT_HASH_TABLE_SIZE 37
+
 #define DECLARE_OFFSET(STRUCTNAME, OFFSETNAME) DWORD64 Offset_ ## STRUCTNAME ## _ ## OFFSETNAME
 #define DECLARE_SYMBOL(SYMBOL) DWORD64 Sym_ ## SYMBOL
 
