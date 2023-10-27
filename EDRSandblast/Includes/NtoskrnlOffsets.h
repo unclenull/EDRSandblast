@@ -21,6 +21,7 @@ enum NtoskrnlOffsetType {
     PSPROCESSTYPE,
     PSTHREADTYPE,
     OBJECT_TYPE_CALLBACKLIST,
+    OBP_TYPE_DIRECTORY_OBJECT,
     _SUPPORTED_NTOSKRNL_OFFSETS_END
 };
 
@@ -47,7 +48,7 @@ union NtoskrnlOffsets {
         DWORD64 psThreadType;
         // ntoskrnl _OBJECT_TYPE's CallbackList symbol offset
         DWORD64 object_type_callbacklist;
-
+        // OBP_TYPE_DIRECTORY_OBJECT;
         DWORD64 ObpTypeDirectoryObject;
     } st;
 
