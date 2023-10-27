@@ -1,5 +1,13 @@
 #pragma once
 
+// #define DEBUG
+
+#ifdef DEBUG
+  #define Debug(...) _tprintf(__VA_ARGS__)
+#else
+  #define Debug(...) ((void)0)
+#endif
+
 //TODO P1 : implement a "clean" mode that only removes the driver if installed
 //TODO P2 : replace all instances of exit(1) by a clean_exit() function that uninstalls the driver before exiting
 typedef enum _START_MODE {
