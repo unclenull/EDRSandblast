@@ -2,6 +2,7 @@ import argparse
 import csv
 import os
 import sys
+import traceback
 
 from requests import get
 from gzip import decompress
@@ -13,8 +14,8 @@ import threading
 CSVLock = threading.Lock()
 
 machineType = dict(x86=332, x64=34404)
-knownImageVersions = dict(ntoskrnl=list(), wdigest=list())
-extensions_by_mode = dict(ntoskrnl="exe", wdigest="dll")
+knownImageVersions = dict(ntoskrnl=list(), wdigest=list(), fltmgr=list(), netio=list())
+extensions_by_mode = dict(ntoskrnl="exe", wdigest="dll", fltmgr='sys', netio='sys')
 
 def run(args, **kargs):
     """Wrap subprocess.run to works on Windows and Linux"""
@@ -96,9 +97,14 @@ def get_symbol_offset(symbols_info, symbol_name):
     else:
         return 0
 
-def get_field_offset(symbols_info, field_name):
+def get_field_offset(symbols_info, field_name, start_line=None):
+    search_line = start_line or field_name
+
     for line in symbols_info:
-        if field_name in line:
+        if search_line in line:
+            if search_line == start_line:
+                search_line = field_name
+                continue
             assert "offset" in line
             symbol_offset = int(line.split("+")[-1], 16)
             return symbol_offset
@@ -127,6 +133,12 @@ def extractOffsets(input_file, output_file, mode):
                     break
                 elif "wdigest.dll" in line:
                     imageType = "wdigest"
+                    break
+                elif "FLTMGR.SYS" in line:
+                    imageType = "fltmgr"
+                    break
+                elif "NETIO.SYS" in line:
+                    imageType = "netio"
                     break
             else:
                 print(f"[*] File {input_file} unrecognized")
@@ -174,11 +186,34 @@ def extractOffsets(input_file, output_file, mode):
                 ("g_fParameter_UseLogonCredential",get_symbol_offset), 
                 ("g_IsCredGuardEnabled",get_symbol_offset)
                 ]
-                            
-                
+            elif imageType == "fltmgr":
+                symbols = [
+                ("FltGlobals",get_symbol_offset),
+                ("_FLT_RESOURCE_LIST_HEAD FrameList",get_field_offset),
+                ("_LIST_ENTRY rList",get_field_offset),
+                (("_LIST_ENTRY Links", "struct _FLTP_FRAME {"),get_field_offset),
+                ("_FLT_RESOURCE_LIST_HEAD RegisteredFilters",get_field_offset),
+                ("_LIST_ENTRY PrimaryLink",get_field_offset),
+                (("_DRIVER_OBJECT* DriverObject", "struct _FLT_FILTER {"),get_field_offset),
+                (("_FLT_RESOURCE_LIST_HEAD InstanceList", "struct _FLT_FILTER {"),get_field_offset),
+                ("void * DriverStart",get_field_offset),
+                (("_LIST_ENTRY FilterLink", "struct _FLT_INSTANCE {"),get_field_offset),
+                ("_CALLBACK_NODE*[0] CallbackNodes",get_field_offset), # [0x32] *_CALLBACK_NODE, followed by contents
+                (("PreOperation", "struct _CALLBACK_NODE {"),get_field_offset),
+                (("PostOperation", "struct _CALLBACK_NODE {"),get_field_offset)
+                ]
+            elif imageType == "netio":
+                symbols = [
+                ("g_fParameter_UseLogonCredential",get_symbol_offset), 
+                ("g_IsCredGuardEnabled",get_symbol_offset)
+                ]
+
             symbols_values = list()
             for symbol_name, get_offset in symbols:
-                symbol_value = get_offset(all_symbols_info, symbol_name)
+                if isinstance(symbol_name, tuple):
+                    symbol_value = get_offset(all_symbols_info, *symbol_name)
+                else:
+                    symbol_value = get_offset(all_symbols_info, symbol_name)
                 symbols_values.append(symbol_value)
                 #print(f"[+] {symbol_name} = {hex(symbol_value)}") 
             
@@ -195,6 +230,7 @@ def extractOffsets(input_file, output_file, mode):
         except Exception as e:
             print(f'[!] ERROR : Could not process file {input_file}.')
             print(f'[!] Error message: {e}')
+            traceback.print_exc()
             print(f'[!] If error is of the like of "\'NoneType\' object has no attribute \'group\'", kernel callbacks may not be supported by this version.')
 
     elif os.path.isdir(input_file):
@@ -211,7 +247,7 @@ def extractOffsets(input_file, output_file, mode):
 
 
 def loadOffsetsFromCSV(loadedVersions, CSVPath):
-    print(f'[*] Loading the known known PE versions from "{CSVPath}".')
+    print(f'[*] Loading the known PE versions from "{CSVPath}".')
     
     with open(CSVPath, "r") as csvFile:
         csvReader = csv.reader(csvFile, delimiter=',')
@@ -278,6 +314,8 @@ if __name__ == '__main__':
                 output.write('ntoskrnlVersion,PspCreateProcessNotifyRoutineOffset,PspCreateThreadNotifyRoutineOffset,PspLoadImageNotifyRoutineOffset,_PS_PROTECTIONOffset,EtwThreatIntProvRegHandleOffset,EtwRegEntry_GuidEntryOffset,EtwGuidEntry_ProviderEnableInfoOffset,PsProcessType,PsThreadType,CallbackList,ObpTypeDirectoryObject\n')
             elif mode == "wdigest":
                 output.write('wdigestVersion,g_fParameter_UseLogonCredentialOffset,g_IsCredGuardEnabledOffset\n')
+            elif mode == "fltmgr":
+                output.write('fltmgrVersion,fltGlobals,frameList,rList,frameLinks,filters,primaryLink,driverObject,instanceList,driverStart,filterLink,callbackNodes,preOp,postOp\n')
             else:
                 assert False
     # In download mode, an updated list of image versions published will be retrieved from https://winbindex.m417z.com.

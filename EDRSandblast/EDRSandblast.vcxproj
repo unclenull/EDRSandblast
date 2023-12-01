@@ -168,6 +168,7 @@
     <ClCompile Include="KernellandBypass\KernelCallbacks.c" />
     <ClCompile Include="KernellandBypass\KernelUtils.c" />
     <ClCompile Include="KernellandBypass\ObjectCallbacks.c" />
+    <ClCompile Include="KernellandBypass\MinifilterCallbacks.c" />
     <ClCompile Include="UserlandBypass\Syscalls.c" />
     <ClCompile Include="UserlandBypass\ProcessDumpDirectSyscalls.c" />
     <ClCompile Include="Utils\FileUtils.c" />
@@ -188,6 +189,7 @@
     <ClCompile Include="Utils\KernelPatternSearch.c" />
     <ClCompile Include="Utils\ProcessDump.c" />
     <ClCompile Include="Utils\NtoskrnlOffsets.c" />
+    <ClCompile Include="Utils\FltmgrOffsets.c" />
     <ClCompile Include="Utils\PEBBrowse.c" />
     <ClCompile Include="Utils\PEParser.c" />
     <ClCompile Include="Utils\StringUtils.c" />

@@ -20,7 +20,8 @@
 //TODO : split notify routines & object callbacks in different files, but keep this base to implement more kernel callbacks types (CMRegisterCallbacks, etc)
 enum kernel_callback_type_e {
     NOTIFY_ROUTINE_CB,
-    OBJECT_CALLBACK
+    OBJECT_CALLBACK,
+    MINIFILTER_CALLBACK
 };
 struct KRNL_CALLBACK {
     enum kernel_callback_type_e type;
@@ -34,6 +35,9 @@ struct KRNL_CALLBACK {
         struct object_callback_t {
             DWORD64 enable_addr;
         } object_callback;
+        struct minifilter_callback_t {
+            DWORD64 callback_addr;
+        } minifilter_callback;
     } addresses;
     DWORD64 callback_func;
     BOOL removed;

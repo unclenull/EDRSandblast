@@ -20,6 +20,31 @@ DWORD64 FindNtoskrnlBaseAddress(void) {
     return g_NtoskrnlBaseAddress;
 }
 
+DWORD64 FindDriverBaseAddress(TCHAR* driverName) {
+  DWORD addr = 0;
+  DWORD cbNeeded = 0;
+  LPVOID drivers[1024] = { 0 };
+  int cDrivers = 0;
+  TCHAR szDriver[MAX_PATH] = { 0 };
+
+  if (EnumDeviceDrivers(drivers, sizeof(drivers), &cbNeeded)) {
+    cDrivers = cbNeeded / sizeof(drivers[0]);
+    for (int i = 0; i < cDrivers; i++) {
+      GetDeviceDriverBaseName(drivers[i], szDriver, _countof(szDriver));
+      if (_tcscmp(szDriver, driverName) == 0) {
+        return drivers[i];
+      }
+    }
+  }
+  return addr;
+}
+
+TCHAR* GetDriverName(DWORD64 baseAddress) {
+  TCHAR szDriver[MAX_PATH] = { 0 };
+  GetDeviceDriverBaseName(baseAddress, szDriver, _countof(szDriver));
+  return _tcsdup(szDriver);
+}
+
 /*
 * Returns the name of the driver where "address" seems to be located
 * Optionnaly, return in "offset" the distance between "address" and the driver base address.
@@ -29,7 +54,7 @@ TCHAR* FindDriverName(DWORD64 address, _Out_opt_ PDWORD64 offset) {
     DWORD cbNeeded;
     int cDrivers = 0;
     int i = 0;
-    TCHAR szDriver[1024] = { 0 };
+    TCHAR szDriver[MAX_PATH] = { 0 };
     DWORD64 minDiff = MAXDWORD64;
     DWORD64 diff;
     if (offset) {
@@ -37,7 +62,7 @@ TCHAR* FindDriverName(DWORD64 address, _Out_opt_ PDWORD64 offset) {
     }
     if (EnumDeviceDrivers(drivers, sizeof(drivers), &cbNeeded)) {
         cDrivers = cbNeeded / sizeof(drivers[0]);
-        for (i = 0; i < cDrivers; i++) {
+        for (int i = 0; i < cDrivers; i++) {
             if ((DWORD64)drivers[i] <= address) {
                 diff = address - (DWORD64)drivers[i];
                 if (diff < minDiff) {
