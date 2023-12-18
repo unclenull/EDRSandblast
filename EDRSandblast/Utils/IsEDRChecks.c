@@ -217,7 +217,7 @@ BOOL isFileSignatureMatchingEDR(TCHAR* filePath) {
 
 BOOL isBinaryNameMatchingEDR(TCHAR* binaryName) {
     for (int i = 0; i < _countof(EDR_BINARIES); ++i) {
-        if (_tcscmp(binaryName, EDR_BINARIES[i]) == 0) {
+        if (_tcsicmp(binaryName, EDR_BINARIES[i]) == 0) {
             return TRUE;
         }
     }
@@ -235,7 +235,7 @@ BOOL isBinaryPathMatchingEDR(TCHAR* binaryPath) {
 
 BOOL isDriverNameMatchingEDR(TCHAR* driverName) {
     for (int i = 0; i < _countof(EDR_DRIVERS); ++i) {
-        if (_tcscmp(driverName, EDR_DRIVERS[i]) == 0) {
+        if (_tcsicmp(driverName, EDR_DRIVERS[i]) == 0) {
             return TRUE;
         }
     }

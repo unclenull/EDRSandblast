@@ -2,6 +2,8 @@
 #include <Psapi.h>
 #include <Tchar.h>
 
+#include "KernelMemoryPrimitives.h"
+#include "KernelUtils.h"
 #include "../EDRSandblast.h"
 
 DWORD64 g_NtoskrnlBaseAddress;
@@ -20,7 +22,7 @@ DWORD64 FindNtoskrnlBaseAddress(void) {
     return g_NtoskrnlBaseAddress;
 }
 
-DWORD64 FindDriverBaseAddress(TCHAR* driverName) {
+DWORD64 FindDriverBaseAddress(const TCHAR* driverName) {
   DWORD addr = 0;
   DWORD cbNeeded = 0;
   LPVOID drivers[1024] = { 0 };
@@ -31,8 +33,8 @@ DWORD64 FindDriverBaseAddress(TCHAR* driverName) {
     cDrivers = cbNeeded / sizeof(drivers[0]);
     for (int i = 0; i < cDrivers; i++) {
       GetDeviceDriverBaseName(drivers[i], szDriver, _countof(szDriver));
-      if (_tcscmp(szDriver, driverName) == 0) {
-        return drivers[i];
+      if (_tcsicmp(szDriver, driverName) == 0) {
+        return (DWORD64)drivers[i];
       }
     }
   }
@@ -41,7 +43,7 @@ DWORD64 FindDriverBaseAddress(TCHAR* driverName) {
 
 TCHAR* GetDriverName(DWORD64 baseAddress) {
   TCHAR szDriver[MAX_PATH] = { 0 };
-  GetDeviceDriverBaseName(baseAddress, szDriver, _countof(szDriver));
+  GetDeviceDriverBaseName((LPVOID)baseAddress, szDriver, _countof(szDriver));
   return _tcsdup(szDriver);
 }
 
@@ -53,7 +55,6 @@ TCHAR* FindDriverName(DWORD64 address, _Out_opt_ PDWORD64 offset) {
     LPVOID drivers[1024] = { 0 };
     DWORD cbNeeded;
     int cDrivers = 0;
-    int i = 0;
     TCHAR szDriver[MAX_PATH] = { 0 };
     DWORD64 minDiff = MAXDWORD64;
     DWORD64 diff;
@@ -131,3 +132,24 @@ DWORD64 GetKernelFunctionAddress(LPCSTR function) {
     // _tprintf_or_not(TEXT("[+] %s address: 0x%I64x\n"), function, address);
     return address;
 }
+
+WORD ReadUnicodeString(DWORD64 Address, wchar_t buffer[STRING_MAX_LENGTH]) {
+  USHORT count = ReadMemoryWORD(Address);
+  count /= sizeof(wchar_t);
+  if (count > STRING_MAX_LENGTH) {
+    count = STRING_MAX_LENGTH;
+  }
+
+  wchar_t v = 0x0;
+
+  DWORD64 bufAddr = ReadMemoryDWORD64(Address + 8);
+
+  for(int i = 0; i < count; i++) {
+    v = (wchar_t)ReadMemoryWORD(bufAddr + (i * sizeof(WORD)));
+    buffer[i] = v;
+
+  }
+
+  return count;
+}
+

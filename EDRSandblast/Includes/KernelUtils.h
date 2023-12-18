@@ -8,3 +8,6 @@ DWORD64 GetKernelFunctionAddress(LPCSTR function);
 
 TCHAR* GetDriverName(DWORD64 address);
 DWORD64 FindDriverBaseAddress(const TCHAR* driverName);
+
+#define STRING_MAX_LENGTH 256
+WORD ReadUnicodeString(DWORD64 Address, wchar_t buffer[STRING_MAX_LENGTH]);

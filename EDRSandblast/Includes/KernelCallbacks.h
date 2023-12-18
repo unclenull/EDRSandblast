@@ -21,7 +21,6 @@
 enum kernel_callback_type_e {
     NOTIFY_ROUTINE_CB,
     OBJECT_CALLBACK,
-    MINIFILTER_CALLBACK
 };
 struct KRNL_CALLBACK {
     enum kernel_callback_type_e type;
@@ -35,9 +34,6 @@ struct KRNL_CALLBACK {
         struct object_callback_t {
             DWORD64 enable_addr;
         } object_callback;
-        struct minifilter_callback_t {
-            DWORD64 callback_addr;
-        } minifilter_callback;
     } addresses;
     DWORD64 callback_func;
     BOOL removed;
@@ -47,8 +43,6 @@ struct FOUND_EDR_CALLBACKS {
     DWORD64 index;
     struct KRNL_CALLBACK EDR_CALLBACKS[256];
 };
-
-
 
 BOOL isDriverEDR(TCHAR* driver);
 void RestoreEDRNotifyRoutineCallbacks(struct FOUND_EDR_CALLBACKS* edrDrivers);
