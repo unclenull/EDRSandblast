@@ -1,2 +1,2 @@
-fltmgrVersion,fltGlobals,frameList,rList,frameLinks,filters,primaryLink,driverObject,instanceList,driverStart,filterLink,callbackNodes,preOp,postOp
-fltmgr_19041-1806.sys,29600,58,68,8,48,10,60,68,18,70,a0,18,20
+fltmgrVersion,fltGlobals,frameList,rList,rCount,primaryLink,frameLinks,filters,filterName,filterInstances,registration,volumeInstances,instanceVolume,filterLink,callbacks
+fltmgr_19041-1806.sys,29600,58,68,78,10,8,48,38,68,1a8,a0,38,70,a0

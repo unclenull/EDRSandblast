@@ -29,7 +29,7 @@ void patch_r(DWORD64 address, DWORD64 newValue) {
 }
 
 void patch_o(DWORD64 address, DWORD64 newValue) {
-  patchExplicit_r(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = 0 }, S8);
+  patchExplicit_o(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = 0 }, S8);
 }
 
 void patchSize_r(DWORD64 address, Value newValue, Size size) {
@@ -66,7 +66,7 @@ void patchExplicit_r(DWORD64 address, Value newValue, Value value, Size size) {
   if (address < 0x0000800000000000) {
     _tprintf_or_not(TEXT("Userland address used: 0x%016llx\nThis should not happen, aborting...\n"), address);
     DebugBreak();
-    // exit(1);
+    exit(1);
   }
 
   write(address, newValue, size);
@@ -81,34 +81,25 @@ void patchExplicit_r(DWORD64 address, Value newValue, Value value, Size size) {
   }
 
   RESTORE_POINT* point = NULL;
-  int i = 0;
-  for (; i <= RestorePoints->count; i++) {
+  for (int i = 0; i <= RestorePoints->count; i++) {
     point = &RestorePoints->points[i];
     if (point->address == address) {
-      break;
+      return; // keep it's original value untouched.
     }
   }
 
-  BOOL isNew = RestorePoints->count == 0 || i == RestorePoints->count + 1;
-  if (isNew) {
-    RestorePoints->count++;
-    point->value = value; // or keep it's original value untouched.
-  }
-
-  if (!isNew) {
-    DebugBreak();
-  }
-
+  point->value = value;
   point->size = size;
   point->address = address;
-  point->newValue = newValue;
+
+  RestorePoints->count++;
 }
 void patchExplicit_o(DWORD64 address, Value newValue, Value value, Size size) {
   if (address < 0x0000800000000000) {
     _tprintf_or_not(TEXT("Userland address used: 0x%016llx\nThis should not happen, aborting...\n"), address);
     exit(1);
   }
-  value = value;
+  value = value; // unreferenced warning
   write(address, newValue, size);
 }
 

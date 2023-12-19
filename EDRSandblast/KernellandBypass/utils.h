@@ -11,7 +11,6 @@ typedef struct TRESTORE_POINT {
   DWORD64 address;
   Size size;
   Value value;
-  Value newValue;
 } RESTORE_POINT;
 
 typedef struct TRESTORE_POINTS {
