@@ -11,3 +11,4 @@ DWORD64 FindDriverBaseAddress(const TCHAR* driverName);
 
 #define STRING_MAX_LENGTH 256
 WORD ReadUnicodeString(DWORD64 Address, wchar_t buffer[STRING_MAX_LENGTH]);
+BYTE ReadAnsiString(DWORD64 Address, char buffer[STRING_MAX_LENGTH]);

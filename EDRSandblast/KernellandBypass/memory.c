@@ -1,8 +1,9 @@
 #include <Windows.h>
+#include <stdio.h>
 #include <Tchar.h>
 #include "KernelCallbacks.h"
 #include "KernelMemoryPrimitives.h"
-#include "./utils.h"
+#include "./memory.h"
 #include "../EDRSandblast.h"
 
 RESTORE_POINTS* RestorePoints = NULL;
@@ -64,7 +65,7 @@ void patchKnown_o(DWORD64 address, DWORD64 newValue, DWORD64 value) {
 
 void patchExplicit_r(DWORD64 address, Value newValue, Value value, Size size) {
   if (address < 0x0000800000000000) {
-    _tprintf_or_not(TEXT("Userland address used: 0x%016llx\nThis should not happen, aborting...\n"), address);
+    _tprintf_or_not(TEXT("Userland address used: 0x%016llx\nThis should not happen, aborting....\n"), address);
     DebugBreak();
     exit(1);
   }
@@ -124,6 +125,18 @@ void removeDoubleLinkedNode(DWORD64 LIST_ENTRY) {
   DWORD64 last = ReadMemoryDWORD64(LIST_ENTRY + 8);
   PatchKnown(last, next, LIST_ENTRY);
   PatchKnown(next + 8, last, LIST_ENTRY);
+}
+
+DWORD64 patternSearch(DWORD64 start, UINT16 range, DWORD64 pattern) {
+  for (UINT16 i = 0; i < range; i++) {
+    DWORD64 contents = ReadMemoryDWORD64(start + i);
+    if (contents == pattern) {
+      printf("Found pattern [%llx] at [%llx]\n", pattern, start + i);
+      return start + i;
+    }
+  }
+
+  return 0;
 }
 
 PATCH Patch = patch_r;

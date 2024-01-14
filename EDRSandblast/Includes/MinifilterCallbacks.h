@@ -3,4 +3,6 @@
 
 BOOL EnumMinifilterCallbacks();
 void DisableMinifilterCallbacks();
-void EnableMinifilterCallbacks();
+
+BOOL EnumNetioCallouts();
+void DisableNetioCallouts();

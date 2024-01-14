@@ -44,7 +44,7 @@ dt fltmgr!_FLT_INSTANCE ffff9e81`25cd0020-10
 
 #include "MinifilterCallbacks.h"
 
-#include "./utils.h"
+#include "./memory.h"
 
 TCHAR const* WIN_FILTERS[] = {
   _T("npsvctrig"),

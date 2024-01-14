@@ -1,4 +1,16 @@
 /*
+ntoskrnl.exe
+ahcache.sys
+mmcss.sys
+cng.sys
+ksecdd.sys
+tcpip.sys
+iorate.sys
+ci.dll
+dxkrnl.sys
+peauth.sys
+*/
+/*
 
 --- Kernel callbacks operations.
 --- Inspiration and credit: https://github.com/br-sn/CheekyBlinder

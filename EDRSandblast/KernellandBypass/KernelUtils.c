@@ -147,9 +147,16 @@ WORD ReadUnicodeString(DWORD64 Address, wchar_t buffer[STRING_MAX_LENGTH]) {
   for(int i = 0; i < count; i++) {
     v = (wchar_t)ReadMemoryWORD(bufAddr + (i * sizeof(WORD)));
     buffer[i] = v;
-
   }
 
   return count;
+}
+
+BYTE ReadAnsiString(DWORD64 Address, char buffer[STRING_MAX_LENGTH]) {
+  BYTE i = 0;
+  while((buffer[i] = ReadMemoryBYTE(Address + (i * sizeof(BYTE)))) != 0) {
+    i++;
+  }
+  return i;
 }
 

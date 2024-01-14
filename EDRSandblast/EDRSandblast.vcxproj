@@ -131,7 +131,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalIncludeDirectories>Includes\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -169,7 +169,9 @@
     <ClCompile Include="KernellandBypass\KernelUtils.c" />
     <ClCompile Include="KernellandBypass\ObjectCallbacks.c" />
     <ClCompile Include="KernellandBypass\MinifilterCallbacks.c" />
-    <ClCompile Include="KernellandBypass\utils.c" />
+    <ClCompile Include="KernellandBypass\NetioCallouts.c" />
+    <ClCompile Include="KernellandBypass\memory.c" />
+    <ClCompile Include="KernellandBypass\symbol.c" />
     <ClCompile Include="UserlandBypass\Syscalls.c" />
     <ClCompile Include="UserlandBypass\ProcessDumpDirectSyscalls.c" />
     <ClCompile Include="Utils\FileUtils.c" />
