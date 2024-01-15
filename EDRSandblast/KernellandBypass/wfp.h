@@ -1,0 +1,40 @@
+typedef enum _SYM_FWPK {
+  SYM_FWPK_FwppCalloutFindById,
+  SYM_FWPK_CalloutCount,
+  SYM_FWPK_COUNT
+} SYM_FWPK;
+
+#define FOREACH_EXPORT_FWPK(G) \
+  G(FwpsCalloutUnregisterById0),
+
+#define GENERATE_EXP_ENUM_FWPK(ENUM) EXP_FWPK_##ENUM
+
+typedef enum _EXPORT_ID_FWPK {
+  FOREACH_EXPORT_FWPK(GENERATE_EXP_ENUM_FWPK)
+  EXP_FWPK_COUNT
+} EXPORT_ID_FWPK;
+
+typedef enum _SYM_NETIO {
+  SYM_NETIO_gWfpGlobal,
+  SYM_NETIO_COUNT
+} SYM_NETIO;
+
+#define FOREACH_EXPORT_NETIO(G) \
+  G(FeGetWfpGlobalPtr),
+
+#define GENERATE_EXP_ENUM_NETIO(ENUM) EXP_NETIO_##ENUM
+
+typedef enum _EXPORT_ID_NETIO {
+  FOREACH_EXPORT_NETIO(GENERATE_EXP_ENUM_NETIO)
+  EXP_NETIO_COUNT
+} EXPORT_ID_NETIO;
+
+BOOL WfpSetup(PSYSTEM_MODULE_INFORMATION moduleRawList);
+BOOL EnumNetio();
+void DisableNetio();
+
+typedef struct _NETIO_SETTING {
+  OS_KEY os;
+  UINT listOffset;
+  UINT8 itemSize;
+} NETIO_SETTING, *PNETIO_SETTING;

@@ -16,6 +16,7 @@ if len(sys.argv) == 4:
     downloadVersion = sys.argv[3]
 
 def download_file(url, local_filename):
+    print(f'Downloading {url}')
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
         total_size = int(r.headers.get("content-length", 0))
@@ -109,8 +110,9 @@ for i, info in enumerate(downloadInfos.values()):
     binFile = parts[0] + '.' + info['version'] + '.' + parts[1]
     binFile = os.path.join(folder, binFile)
     if os.path.isfile(binFile):
-        print(f'File already exists: {binFile}')
+        print(f'File already exists {i}: {binFile}')
         continue
-    fileId = ('0000000' + hex(info['timestamp']))[-8:].upper() + hex(info['virtualSize'])[2:]
+    fileId = ('0000000' + hex(info['timestamp'])[2:])[-8:].upper() + hex(info['virtualSize'])[2:]
+    # import pdb; pdb.set_trace()
     print(f'Downloading file {i}: {binFile}')
     download_file('https://msdl.microsoft.com/download/symbols/' + filename + '/' + fileId + '/' + filename, binFile)

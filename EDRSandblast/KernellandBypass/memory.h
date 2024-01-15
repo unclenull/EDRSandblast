@@ -38,7 +38,7 @@ void Restore();
 
 BOOL includesString(TCHAR const** list, int count, TCHAR* entry);
 void removeDoubleLinkedNode(DWORD64 LIST_ENTRY);
-DWORD64 patternSearch(DWORD64 start, UINT16 range, DWORD64 pattern);
+DWORD64 patternSearch(DWORD64 start, UINT16 range, DWORD64 pattern, DWORD64 mask);
 
 extern RESTORE_POINTS* RestorePoints;
 extern PATCH Patch;

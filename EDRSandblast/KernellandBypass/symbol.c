@@ -6,8 +6,6 @@
 #include "KernelUtils.h"
 #include "./symbol.h"
 #include "./memory.h"
-#include "./kernel.h"
-#include "./netio.h"
 
 #pragma comment(lib, "ntdll.lib")
 
@@ -189,22 +187,42 @@ void fillModuleAddress(PSYSTEM_MODULE_INFORMATION pModuleList, PMODULE pM) {
   printf("Failed to find %s\n", pM->name);
 }
 
-void resolveSymbols(PMODULE_PATCHED pM) {
+BOOL resolveSymbols(PMODULE_PATCHED pM) {
   printf("Resolve symbols for %s\n", pM->name);
   for (int j = 0; j < pM->symbolsCount; j++) {
     PSYMBOL_META_POOL_ITEM pItem = &pM->symbolMetaPool[j];
     PSYMBOL_META pMeta = pItem->metaGetter();
+    if (!pMeta) {
+      return FALSE;
+    }
+
+    DWORD64 baseAddr;
+    if (pMeta->fromSymbol) {
+      if (pItem->id < pMeta->baseId) {
+        printf("The dependent Symbol ID %i should be bigger than the source %i in module %s\n", pItem->id, pMeta->baseId, pM->name);
+      }
+      baseAddr = pM->symbolsAddresses[pMeta->baseId];
+    } else {
+      baseAddr = pM->exportAddresses[pMeta->baseId];
+    }
+
     DWORD64 symbolOffsetAddr;
     if (pMeta->pattern) {
-      DWORD64 patternAddr = patternSearch(pM->exportAddresses[pMeta->exportId], pMeta->range, pMeta->pattern);
+      DWORD64 patternAddr = patternSearch(baseAddr, pMeta->range, pMeta->pattern, pMeta->mask);
+      if (!patternAddr) {
+        printf("Failed to search pattern %llx for module %s\n", pMeta->pattern, pM->name);
+        return FALSE;
+      }
       symbolOffsetAddr = patternAddr + pMeta->offset;
     } else {
-      symbolOffsetAddr = pM->exportAddresses[pMeta->exportId] + pMeta->offset;
+      symbolOffsetAddr = baseAddr + pMeta->offset;
     }
-    DWORD symbolOffset = ReadMemoryDWORD(symbolOffsetAddr);
+    INT32 symbolOffset = (INT32)ReadMemoryDWORD(symbolOffsetAddr);
     pM->symbolsAddresses[pItem->id] = symbolOffsetAddr + sizeof(DWORD) + symbolOffset;
     printf("symbol No.%2i: %llx\n", j, pM->symbolsAddresses[pItem->id]);
   }
+  
+  return TRUE;
 }
 
 PBYTE FindVersionedStruct(PBYTE start, UINT8 itemCount, UINT8 itemSize) {
@@ -220,7 +238,7 @@ PBYTE FindVersionedStruct(PBYTE start, UINT8 itemCount, UINT8 itemSize) {
   return nearYounger;
 }
 
-void InitModulesAndSymbols() {
+PSYSTEM_MODULE_INFORMATION GlobalSetup() {
     DebugBreak();
 
   // Get build id
@@ -239,24 +257,20 @@ void InitModulesAndSymbols() {
     fillModuleAddress(moduleRawList, pM);
   }
 
-  // Modules to patch
-  PMODULE_PATCHED modulesPatched[] = { &ModuleKernel, &ModuleNetio };
-  for (int i = 0; i < _countof(modulesPatched); i++) {
-    PMODULE_PATCHED pM = modulesPatched[i];
-
-    // Initiate exports list if dynamic
-    if (pM->exportsInitializer) {
-      pM->exportsInitializer(pM);
-    }
-
-    // Resolve export addresses
-    fillModuleAddress(moduleRawList, (PMODULE)pM);
-    fillExports(pM);
-
-    // Calculate symbols addresses.
-    resolveSymbols(pM);
-  }
-
-  LocalFree(moduleRawList);
+  return moduleRawList;
 }
 
+BOOL InitPatchedModule(PSYSTEM_MODULE_INFORMATION moduleRawList, PMODULE_PATCHED pM) {
+  // Initiate exports list if dynamic
+  if (pM->exportsInitializer && !pM->exportsInitializer(pM)) {
+    printf("Failed to init exports for module %s.\n", pM->name);
+    return FALSE;
+  }
+
+  // Resolve export addresses
+  fillModuleAddress(moduleRawList, (PMODULE)pM);
+  fillExports(pM);
+
+  // Calculate symbols addresses.
+  return resolveSymbols(pM);
+}

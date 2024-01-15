@@ -33,9 +33,9 @@ UINT8 kernelExports_os10_lg[] = {
   EXP_KNL_CmUnRegisterCallback
 };
 // The same size of all IDs, since we use it for indexing
-DWORD64 knlExportAddresses[EXPORT_KNL_COUNT] = { 0 };
+DWORD64 knlExportAddresses[EXP_KNL_COUNT] = { 0 };
 
-void initKernelExports(PMODULE_PATCHED pM) {
+BOOL initKernelExports(PMODULE_PATCHED pM) {
   if (BuildIDKey > OS_10) {
     if (BuildIDKey <= OS_10_17134) {
       pM->exportIds = kernelExports_os10_ll;
@@ -44,11 +44,13 @@ void initKernelExports(PMODULE_PATCHED pM) {
       pM->exportIds = kernelExports_os10_lg;
       pM->exportsCount = _countof(kernelExports_os10_lg);
     }
+  } else {
+    return FALSE;
   }
 }
 
-SYMBOL_META OS_10_PspLoadImageNotifyRoutine_LL = { EXP_KNL_PsSetLoadImageNotifyRoutine, 0x80, 0x48d90c8d48c03345, -4 };
-SYMBOL_META OS_10_PspLoadImageNotifyRoutine_LG = { EXP_KNL_PsSetLoadImageNotifyRoutineEx, 0x80, 0x48d90c8d48c03345, -4 };
+SYMBOL_META OS_10_PspLoadImageNotifyRoutine_LL = { EXP_KNL_PsSetLoadImageNotifyRoutine, 0x80, 0x48d90c8d48c03345, 0, -4, 0 };
+SYMBOL_META OS_10_PspLoadImageNotifyRoutine_LG = { EXP_KNL_PsSetLoadImageNotifyRoutineEx, 0x80, 0x48d90c8d48c03345, 0, -4, 0 };
 PSYMBOL_META getter_PspLoadImageNotifyRoutine() {
   if (BuildIDKey > OS_10) {
     if (BuildIDKey <= OS_10_17134) {
@@ -63,15 +65,17 @@ PSYMBOL_META getter_PspLoadImageNotifyRoutine() {
 
 SYMBOL_META_POOL_ITEM symbolMetaPoolKnl[] = {
   {
-    SYMBOL_KNL_PspLoadImageNotifyRoutine, getter_PspLoadImageNotifyRoutine
+    SYM_KNL_PspLoadImageNotifyRoutine, getter_PspLoadImageNotifyRoutine
   }
 };
 
-DWORD64 kernelSymbolAddresses[SYMBOL_KNL_COUNT] = { 0 };
+DWORD64 kernelSymbolAddresses[SYM_KNL_COUNT] = { 0 };
 
-MODULE_PATCHED ModuleKernel =
-  { "ntoskrnl.exe", 0, 0, initKernelExports, 0, 0, exportNamesKnl, knlExportAddresses, SYMBOL_KNL_COUNT, symbolMetaPoolKnl, kernelSymbolAddresses };
-
+BOOL KernelSetup(PSYSTEM_MODULE_INFORMATION moduleRawList) {
+  MODULE_PATCHED moduleKernel =
+  { "ntoskrnl.exe", 0, 0, initKernelExports, 0, 0, exportNamesKnl, knlExportAddresses, SYM_KNL_COUNT, symbolMetaPoolKnl, kernelSymbolAddresses };
+  return InitPatchedModule(moduleRawList, &moduleKernel);
+}
 
 typedef enum OB_OPERATION_e {
     OB_OPERATION_HANDLE_CREATE = 1,

@@ -127,9 +127,12 @@ void removeDoubleLinkedNode(DWORD64 LIST_ENTRY) {
   PatchKnown(next + 8, last, LIST_ENTRY);
 }
 
-DWORD64 patternSearch(DWORD64 start, UINT16 range, DWORD64 pattern) {
+DWORD64 patternSearch(DWORD64 start, UINT16 range, DWORD64 pattern, DWORD64 mask) {
   for (UINT16 i = 0; i < range; i++) {
     DWORD64 contents = ReadMemoryDWORD64(start + i);
+    if (mask) {
+      contents &= mask;
+    }
     if (contents == pattern) {
       printf("Found pattern [%llx] at [%llx]\n", pattern, start + i);
       return start + i;

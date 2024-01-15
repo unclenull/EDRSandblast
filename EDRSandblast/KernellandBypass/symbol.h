@@ -62,13 +62,15 @@ typedef enum _MODULE_ID {
 } MODULE_ID;
 
 typedef struct _MODULE_PATCHED MODULE_PATCHED, *PMODULE_PATCHED;
-typedef void (*EXPORT_INITIALIZER)(PMODULE_PATCHED pM);
+typedef BOOL (*EXPORT_INITIALIZER)(PMODULE_PATCHED pM);
 
 typedef struct _SYMBOL_META {
-  UINT exportId;
+  UINT baseId;
   UINT16 range;
   DWORD64 pattern;
+  DWORD64 mask;
   INT8 offset;
+  BOOL fromSymbol;
 } SYMBOL_META, *PSYMBOL_META;
 
 typedef PSYMBOL_META (*SYMBOL_META_GETTER)();
@@ -118,7 +120,8 @@ struct _MODULE_PATCHED {
 
 BOOL IsAddressWhitelisted(MODULE_ID *list, UINT8 size, DWORD64 addr);
 PBYTE FindVersionedStruct(PBYTE start, UINT8 itemCount, UINT8 itemSize);
-void InitModulesAndSymbols();
+BOOL InitPatchedModule(PSYSTEM_MODULE_INFORMATION moduleRawList, PMODULE_PATCHED pM);
+PSYSTEM_MODULE_INFORMATION GlobalSetup();
 
 #ifdef _DEBUG
 void BelongToDriver(DWORD64 addr);
