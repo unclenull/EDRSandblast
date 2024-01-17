@@ -2,6 +2,7 @@
 #include <winternl.h>
 #include <Tchar.h>
 #include <stdio.h>
+#include <string.h>
 #include "KernelMemoryPrimitives.h"
 #include "KernelUtils.h"
 #include "./symbol.h"
@@ -56,7 +57,10 @@ void fillFullModuleList(PSYSTEM_MODULE_INFORMATION pModuleList) {
   for (ULONG i = 0; i < FullModuleListCount; i++)
   {
     PMODULE pM = &FullModuleList[i];
-    pM->name = pModuleList->Module[i].ImageName + pModuleList->Module[i].PathLength;
+    PCHAR name = pModuleList->Module[i].ImageName + pModuleList->Module[i].PathLength;
+    size_t size = (strlen(name) + 1) * sizeof(CHAR);
+    pM->name = (PCHAR)LocalAlloc(LMEM_ZEROINIT, size);
+    strcpy_s(pM->name, size, name);
     pM->start = pModuleList->Module[i].Base;
     pM->end = pModuleList->Module[i].Base + pModuleList->Module[i].Size;
   }
@@ -239,7 +243,7 @@ PBYTE FindVersionedStruct(PBYTE start, UINT8 itemCount, UINT8 itemSize) {
 }
 
 PSYSTEM_MODULE_INFORMATION GlobalSetup() {
-    DebugBreak();
+    // DebugBreak();
 
   // Get build id
   initWindowsId(readVersion());

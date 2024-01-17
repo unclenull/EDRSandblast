@@ -96,8 +96,7 @@ MODULE_PATCHED moduleNetio =
 
 // from FeInitCalloutTable
 NETIO_SETTING settingsPool[] = {
-  {OS_10_10240, 0x198, 0x50},
-  {OS_10_10586, 0x150, 0x50},
+  {OS_10_10240, 0x150, 0x50},
   {OS_10_15063, 0x198, 0x50},
   {OS_10_22000, 0x1a0, 0x50}
 };
