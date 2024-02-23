@@ -1,0 +1,24 @@
+r$t0=poi(nt!EtwpHostSiloState)+1d0;
+r$t1=poi(@$t0 + 8 * 0);
+r$t9=0;
+.while(@$t0!=@$t1) {
+  .printf "[%p]------------------------\nGUID_ENTRY %p\n", @$t9, @$t1;
+  dt nt!_GUID @$t1+28;
+  r$t2=poi(@$t1+38);
+  .if(@$t2==@$t1+38) {
+    .echo !!!NO reg
+  } .else {
+    .printf "REG_ENTRY %p\n", @$t2;
+
+    r$t3=poi(@$t2+50);
+    .if (@$t3) {
+      .printf "_EPROCESS %p\n", @$t3;
+      da @$t3+5a8;
+    } .else {
+      .echo "!!!NO process";
+    }
+  }
+
+  r$t1=poi(@$t1);
+  r$t9=@$t9+1;
+}

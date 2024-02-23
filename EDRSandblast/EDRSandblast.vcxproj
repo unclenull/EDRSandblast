@@ -169,7 +169,9 @@
     <ClCompile Include="KernellandBypass\KernelUtils.c" />
     <ClCompile Include="KernellandBypass\ObjectCallbacks.c" />
     <ClCompile Include="KernellandBypass\MinifilterCallbacks.c" />
+    <ClCompile Include="KernellandBypass\kernel.c" />
     <ClCompile Include="KernellandBypass\wfp.c" />
+    <ClCompile Include="KernellandBypass\etw.c" />
     <ClCompile Include="KernellandBypass\memory.c" />
     <ClCompile Include="KernellandBypass\symbol.c" />
     <ClCompile Include="UserlandBypass\Syscalls.c" />

@@ -1,0 +1,18 @@
+r$t0=poi(poi(nt!EtwpHostSiloState)+1c8);
+r$t1=poi(poi(nt!EtwpHostSiloState)+1c0);
+r$t2=dwo(poi(@$t1)+14)
+r$t3=dwo(poi(@$t1)+10)
+.for(r$t9=0;@$t9<40;r$t9=@$t9+1) {
+  .if (poi(@$t0+@$t9*8) == 1) {
+    .continue
+  }
+  r$t8=poi(@$t1+@$t9*8)
+  .printf "[%p]------------------------\nRundown %p\n", @$t9, @$t8;
+
+  .for(r$t7=0;@$t7<@$t2;r$t7=@$t7+1) {
+    r$t6=@$t8+@$t7*@$t3
+    r$t5=poi(@$t6)
+    .printf "--[%p] %p\n", @$t7, @$t6;
+    eq @$t6 (@$t5 or 1)
+  }
+}

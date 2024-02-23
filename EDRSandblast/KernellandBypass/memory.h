@@ -1,3 +1,5 @@
+#pragma once
+
 typedef enum TSize { S1, S2, S4, S8 } Size;
 
 typedef union TValue {
@@ -11,6 +13,9 @@ typedef struct TRESTORE_POINT {
   DWORD64 address;
   Size size;
   Value value;
+  // before restore, check if this struct of which the member with this address is still referenced by refAddress 
+  DWORD64 refAddress;
+  DWORD64 structAddress;
 } RESTORE_POINT;
 
 typedef struct TRESTORE_POINTS {
@@ -22,17 +27,17 @@ typedef struct TRESTORE_POINTS {
 typedef void (*PATCH)(DWORD64 address, DWORD64 newValue);
 typedef void (*PATCH_SIZE)(DWORD64 address, Value newValue, Size size);
 typedef void (*PATCH_KNOWN)(DWORD64 address, DWORD64 newValue, DWORD64 value);
-typedef void (*PATCH_EXPLICIT)(DWORD64 address, Value newValue, Value value, Size size);
+typedef void (*PATCH_EXPLICIT)(DWORD64 address, Value newValue, Value value, Size size, DWORD64 refAddress, DWORD64 structAddress);
 
 void patch_r(DWORD64 address, DWORD64 newValue);
 void patchSize_r(DWORD64 address, Value newValue, Size size);
 void patchKnown_r(DWORD64 address, DWORD64 newValue, DWORD64 value);
-void patchExplicit_r(DWORD64 address, Value newValue, Value value, Size size);
+void patchExplicit_r(DWORD64 address, Value newValue, Value value, Size size, DWORD64 refAddress, DWORD64 structAddress);
 
 void patch_o(DWORD64 address, DWORD64 newValue);
 void patchSize_o(DWORD64 address, Value newValue, Size size);
 void patchKnown_o(DWORD64 address, DWORD64 newValue, DWORD64 value);
-void patchExplicit_o(DWORD64 address, Value newValue, Value value, Size size);
+void patchExplicit_o(DWORD64 address, Value newValue, Value value, Size size, DWORD64 refAddress, DWORD64 structAddress);
 
 void Restore();
 

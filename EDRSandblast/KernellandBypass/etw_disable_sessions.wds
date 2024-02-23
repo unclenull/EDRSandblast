@@ -1,0 +1,14 @@
+.for(r$t0=poi(poi(nt!EtwpHostSiloState)+1c8),$t1=2; @$t1<25; r$t1=@$t1+1) {
+  r$t2=poi(@$t0+$t1*8);
+  .if (@$t2==1) { .continue };
+  r$t3=dwo(@$t2+10)
+  .if (@$t3==0x80000000) { .continue }
+  .printf "[%p][%p]---------\n", $t1, $t2;
+  dS @$t2+98;
+  $$dS @$t2+a8;
+  $$dS @$t2+c8;
+  $$dS @$t2+180;
+  $$.printf "AcceptNewEvents [%p]\n", @$t3;
+  ed @$t2+10 0x80000000;
+}
+

@@ -26,11 +26,11 @@ void write(DWORD64 address, Value value, Size size) {
 }
 
 void patch_r(DWORD64 address, DWORD64 newValue) {
-  patchExplicit_r(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = ReadMemoryDWORD64(address) }, S8);
+  patchExplicit_r(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = ReadMemoryDWORD64(address) }, S8, 0, 0);
 }
 
 void patch_o(DWORD64 address, DWORD64 newValue) {
-  patchExplicit_o(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = 0 }, S8);
+  patchExplicit_o(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = 0 }, S8, 0, 0);
 }
 
 void patchSize_r(DWORD64 address, Value newValue, Size size) {
@@ -50,20 +50,20 @@ void patchSize_r(DWORD64 address, Value newValue, Size size) {
       value.dword64 = ReadMemoryDWORD64(address);
       break;
   }
-  patchExplicit_r(address, newValue, value, size);
+  patchExplicit_r(address, newValue, value, size, 0, 0);
 }
 void patchSize_o(DWORD64 address, Value newValue, Size size) {
-  patchExplicit_o(address, newValue, (Value){ .dword64 = 0 }, size);
+  patchExplicit_o(address, newValue, (Value){ .dword64 = 0 }, size, 0, 0);
 }
 
 void patchKnown_r(DWORD64 address, DWORD64 newValue, DWORD64 value) {
-  patchExplicit_r(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = value }, S8);
+  patchExplicit_r(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = value }, S8, 0, 0);
 }
 void patchKnown_o(DWORD64 address, DWORD64 newValue, DWORD64 value) {
-  patchExplicit_o(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = value }, S8);
+  patchExplicit_o(address, (Value){ .dword64 = newValue }, (Value){ .dword64 = value }, S8, 0, 0);
 }
 
-void patchExplicit_r(DWORD64 address, Value newValue, Value value, Size size) {
+void patchExplicit_r(DWORD64 address, Value newValue, Value value, Size size, DWORD64 refAddress, DWORD64 structAddress) {
   if (address < 0x0000800000000000) {
     _tprintf_or_not(TEXT("Userland address used: 0x%016llx\nThis should not happen, aborting....\n"), address);
     DebugBreak();
@@ -92,21 +92,34 @@ void patchExplicit_r(DWORD64 address, Value newValue, Value value, Size size) {
   point->value = value;
   point->size = size;
   point->address = address;
+  point->refAddress = refAddress;
+  point->structAddress = structAddress;
 
   RestorePoints->count++;
 }
-void patchExplicit_o(DWORD64 address, Value newValue, Value value, Size size) {
+void patchExplicit_o(DWORD64 address, Value newValue, Value value, Size size, DWORD64 refAddress, DWORD64 structAddress) {
+  // Suppress unreferenced warning
+  value = value;
+  refAddress = refAddress;
+  structAddress = structAddress;
+
   if (address < 0x0000800000000000) {
     _tprintf_or_not(TEXT("Userland address used: 0x%016llx\nThis should not happen, aborting...\n"), address);
     exit(1);
   }
-  value = value; // unreferenced warning
+
   write(address, newValue, size);
 }
 
 void Restore() {
   for (int i = RestorePoints->count - 1; i >= 0; i--) {
     RESTORE_POINT* point = &RestorePoints->points[i];
+    if (point->refAddress) {
+      DWORD64 addr = ReadMemoryDWORD64(point->refAddress);
+      if (addr != point->structAddress) {
+        continue;
+      }
+    }
     write(point->address, point->value, point->size);
   }
 }

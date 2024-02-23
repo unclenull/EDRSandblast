@@ -59,6 +59,8 @@ if not os.path.isfile(infoFile):
     for item in infosRaw.values():
         if 'fileInfo' in item:
             fileInfo = item['fileInfo']
+            if 'virtualSize' not in fileInfo:
+                continue
             if 'version' in fileInfo:
                 version = fileInfo['version'].split(' ')[0]
             else:

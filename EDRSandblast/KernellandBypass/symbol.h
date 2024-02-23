@@ -1,3 +1,6 @@
+#pragma once
+
+#include <Windows.h>
 // echo -n "0x45, 0x33, 0xc0, 0x48, 0x8d, 0x0c, 0xd9, 0x48, 0x8b, 0xd7, 0xe8" | sed "s/0x//g" | tac -s , | tr -d ',' | sed "s/ //g" | rev | cut -c1-16 | rev
 
 typedef enum _OS_KEY {
@@ -69,7 +72,8 @@ typedef struct _SYMBOL_META {
   UINT16 range;
   DWORD64 pattern;
   DWORD64 mask;
-  INT8 offset;
+  INT16 offset;
+  BOOL isBaseOffset;
   BOOL fromSymbol;
 } SYMBOL_META, *PSYMBOL_META;
 

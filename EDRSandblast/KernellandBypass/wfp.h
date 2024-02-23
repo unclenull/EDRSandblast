@@ -30,8 +30,8 @@ typedef enum _EXPORT_ID_NETIO {
 } EXPORT_ID_NETIO;
 
 BOOL WfpSetup(PSYSTEM_MODULE_INFORMATION moduleRawList);
-BOOL EnumNetio();
-void DisableNetio();
+BOOL EnumWfp();
+void DisableWfp();
 
 typedef struct _NETIO_SETTING {
   OS_KEY os;

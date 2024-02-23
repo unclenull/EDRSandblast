@@ -38,7 +38,7 @@ BUILDID_KEY_MAP BuildidKeyMap[] = {
   {19043, OS_10_19043},
   {19044, OS_10_19044},
   {19045, OS_10_19045},
-  {20348, OS_10_20348},
+  {20348, OS_10_20348}, // server2022
   {22000, OS_10_22000},
   {22621, OS_10_22621},
   {22631, OS_10_22631}
@@ -80,6 +80,7 @@ void BelongToDriver(DWORD64 addr) {
 
 
 WORD readVersion() {
+// _TEB
 #if defined(_WIN64)
 #define PEBOffset 0x60
 #define OSBuildNumberOffset 0x120
@@ -197,7 +198,7 @@ BOOL resolveSymbols(PMODULE_PATCHED pM) {
     PSYMBOL_META_POOL_ITEM pItem = &pM->symbolMetaPool[j];
     PSYMBOL_META pMeta = pItem->metaGetter();
     if (!pMeta) {
-      return FALSE;
+      continue;
     }
 
     DWORD64 baseAddr;
@@ -222,7 +223,11 @@ BOOL resolveSymbols(PMODULE_PATCHED pM) {
       symbolOffsetAddr = baseAddr + pMeta->offset;
     }
     INT32 symbolOffset = (INT32)ReadMemoryDWORD(symbolOffsetAddr);
-    pM->symbolsAddresses[pItem->id] = symbolOffsetAddr + sizeof(DWORD) + symbolOffset;
+    if (pMeta->isBaseOffset) { // Add to the image base address
+      pM->symbolsAddresses[pItem->id] = pM->start + symbolOffset;
+    } else { // Add to the next instruction
+      pM->symbolsAddresses[pItem->id] = symbolOffsetAddr + sizeof(DWORD) + symbolOffset;
+    }
     printf("symbol No.%2i: %llx\n", j, pM->symbolsAddresses[pItem->id]);
   }
   
