@@ -122,7 +122,7 @@ void DisableWfp() {
   for (UINT32 i = 0; i < listCount; i++, item += pSettings->itemSize) {
     DWORD64 enabledAddr = item + OFFSET_ENABLED_FLAG;
     UINT32 enabled = ReadMemoryDWORD(enabledAddr);
-    printf("WFP Callout No.%x %s\n", i, enabled ? TEXT("Enabled") : TEXT("Disabled"));
+    printf("WFP Callout No.%x %s\n", i, enabled ? "Enabled" : "Disabled");
     if (enabled) {
       DWORD64 fn = 0;
       for (UINT8 j = 0; j < _countof(offsetsFN); j++) {
@@ -148,12 +148,12 @@ BOOL EnumWfp() {
   UINT32 listCount = ReadMemoryDWORD(fwpkSymbolAddresses[SYM_FWPK_CalloutCount]);
   DWORD64 item = ReadMemoryDWORD64(gWfpGlobal + pSettings->listOffset);
 
-  printf("Total Callouts: %x", listCount);
+  printf("Total Callouts: %x\n", listCount);
 
   for (UINT32 i = 0; i < listCount; i++, item += pSettings->itemSize) {
     DWORD64 enabledAddr = item + OFFSET_ENABLED_FLAG;
     UINT32 enabled = ReadMemoryDWORD(enabledAddr);
-    printf("WFP Callout No.%x %s\n", i, enabled ? TEXT("Enabled") : TEXT("Disabled"));
+    printf("WFP Callout No.%x %s\n", i, enabled ? "Enabled" : "Disabled");
     if (enabled) {
       DWORD64 fn = 0;
       for (UINT8 j = 0; j < _countof(offsetsFN); j++) {

@@ -53,7 +53,7 @@ typedef struct _BUILDID_KEY_MAP {
   G(ci, dll), \
   G(dxkrnl, sys), \
   G(peauth, sys), \
-  G(ndu, exe), \
+  G(ndu, sys), \
   G(mpsdrv, sys), \
 
 #define MODULE_ITEM(name, ext) { STR(name ## . ## ext), 0, 0 }
